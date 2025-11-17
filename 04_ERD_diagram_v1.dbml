@@ -1,0 +1,524 @@
+// Academic Course Assistant System - Entity-Relationship Diagram (DBML)
+// Cox School of Business
+// Version 1.0
+// Date: November 17, 2025
+// Description: Complete database schema for course assistant system
+
+// ============================================================================
+// REFERENCE/LOOKUP ENTITIES
+// ============================================================================
+
+Table Departments {
+  DepartmentID int [pk, increment]
+  DepartmentCode varchar(20) [unique, not null]
+  DepartmentName varchar(100) [not null]
+  Description text
+  DepartmentType enum [not null, note: "Major, Concentration, Support"]
+  IsActive boolean [default: true]
+  DepartmentChairID int [null]
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    DepartmentCode
+    DepartmentName
+    IsActive
+  }
+}
+
+Table DifficultyLevels {
+  DifficultyLevelID int [pk, increment]
+  LevelCode varchar(20) [unique, not null]
+  LevelName varchar(50) [not null]
+  Description text
+  DisplayOrder int [not null]
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    LevelCode
+    DisplayOrder
+  }
+}
+
+Table InstructionModes {
+  InstructionModeID int [pk, increment]
+  ModeCode varchar(20) [unique, not null]
+  ModeName varchar(50) [not null]
+  Description text
+  DisplayOrder int [not null]
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    ModeCode
+    DisplayOrder
+  }
+}
+
+Table Classification {
+  ClassificationID int [pk, increment]
+  ClassificationCode varchar(20) [unique, not null]
+  ClassificationName varchar(50) [not null]
+  MinCreditsRequired int [not null]
+  MaxCreditsRequired int [not null]
+  DisplayOrder int [not null]
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    ClassificationCode
+    DisplayOrder
+  }
+}
+
+// ============================================================================
+// CORE DOMAIN ENTITIES
+// ============================================================================
+
+Table Courses {
+  CourseID int [pk, increment]
+  CourseCode varchar(20) [unique, not null]
+  CourseName varchar(255) [not null]
+  Description text [not null]
+  CreditHours decimal(3,1) [not null]
+  DepartmentID int [not null]
+  DifficultyLevelID int [not null]
+  Status enum [not null, default: "Active", note: "Active, Inactive, Archived"]
+  MaxEnrollment int [not null]
+  InstructionModeID int [not null]
+  SyllabusURL varchar(255)
+  LearningOutcomes text
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  UpdatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    CourseCode
+    DepartmentID
+    DifficultyLevelID
+    Status
+    InstructionModeID
+    (DepartmentID, Status)
+  }
+}
+
+Table Prerequisites {
+  PrerequisiteID int [pk, increment]
+  CourseID int [not null]
+  PrerequisiteCourseID int [not null]
+  MinimumGrade varchar(5) [not null]
+  PrerequisiteType enum [not null, note: "Hard, Recommended, Co-requisite"]
+  EffectiveTerm varchar(20) [not null]
+  Notes text
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  UpdatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    CourseID
+    PrerequisiteCourseID
+    EffectiveTerm
+    (CourseID, EffectiveTerm)
+  }
+}
+
+Table Schedules {
+  ScheduleID int [pk, increment]
+  CourseID int [not null]
+  Semester varchar(20) [not null]
+  SectionNumber varchar(10) [not null]
+  ProfessorID int
+  ProfessorName varchar(255) [not null]
+  MeetingDays varchar(20) [not null]
+  StartTime time [not null]
+  EndTime time [not null]
+  Location varchar(255)
+  InstructionModeID int [not null]
+  EnrollmentStatus enum [not null, note: "Open, Full, Closed, Waitlist"]
+  CurrentEnrollment int [default: 0]
+  WaitListCount int [default: 0]
+  MaxCapacity int [not null]
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  UpdatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (CourseID, Semester, SectionNumber)
+    CourseID
+    Semester
+    InstructionModeID
+    (StartTime, EndTime)
+    (Semester, EnrollmentStatus)
+  }
+}
+
+Table Students {
+  StudentID int [pk]
+  FirstName varchar(100) [not null]
+  LastName varchar(100) [not null]
+  Email varchar(255) [unique, not null]
+  MajorID int [not null]
+  ConcentrationID int
+  GraduationTargetDate date
+  AcademicStanding enum [not null, note: "Good Standing, Probation, Suspended"]
+  CumulativeGPA decimal(3,2) [default: 0.0]
+  TotalCreditsEarned decimal(5,1) [default: 0]
+  ClassificationID int [not null]
+  SISImportDate timestamp
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  UpdatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    Email
+    MajorID
+    ConcentrationID
+    ClassificationID
+    AcademicStanding
+    (MajorID, AcademicStanding)
+  }
+}
+
+Table AcademicHistory {
+  HistoryID int [pk, increment]
+  StudentID int [not null]
+  CourseID int [not null]
+  ScheduleID int
+  Grade varchar(5) [not null]
+  GradePoints decimal(3,2) [not null]
+  TermCompleted varchar(20) [not null]
+  CreditHoursEarned decimal(3,1) [not null]
+  PassFail boolean [default: false]
+  CompletionDate date [not null]
+  GradePointsContribution decimal(5,2)
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  UpdatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (StudentID, CourseID, TermCompleted)
+    StudentID
+    CourseID
+    TermCompleted
+    Grade
+  }
+}
+
+Table StudentPreferences {
+  PreferenceID int [pk, increment]
+  StudentID int [unique, not null]
+  AcademicGoals text
+  CareerInterests varchar(500)
+  PreferredInstructionModeID int
+  PreferredStartTime time
+  PreferredEndTime time
+  PreferredDaysAvailable varchar(20)
+  PreferredDaysUnavailable varchar(20)
+  DifficultyPreference varchar(50)
+  WorkloadPreference enum [note: "Light, Moderate, Heavy"]
+  PreferredDepartments varchar(500)
+  NotificationPreferences json
+  ProfileCompleteness decimal(3,0)
+  LastUpdatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    StudentID
+    PreferredInstructionModeID
+  }
+}
+
+// ============================================================================
+// SUPPORTING FEATURE ENTITIES
+// ============================================================================
+
+Table Recommendations {
+  RecommendationID int [pk, increment]
+  StudentID int [not null]
+  CourseID int [not null]
+  ScheduleID int
+  Rank int [not null]
+  RelevanceScore decimal(3,2) [not null]
+  RecommendationReason text [not null]
+  AlignmentWithGoals varchar(255)
+  SkillDevelopment text
+  CareerRelevance varchar(255)
+  PrerequisiteStatus enum [not null, note: "Met, Missing, Waiver_Pending, Alternative_Available"]
+  SuggestedPrerequisites varchar(500)
+  LogID int [not null]
+  GeneratedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  ExpiryDate date
+  UserFeedback enum [note: "Helpful, Not_Helpful, Ignored"]
+  UserFeedbackDate timestamp
+  IsActive boolean [default: true]
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    StudentID
+    CourseID
+    (StudentID, GeneratedDate)
+    (StudentID, IsActive)
+    Rank
+  }
+}
+
+Table Waivers {
+  WaiverID int [pk, increment]
+  StudentID int [not null]
+  PrerequisiteID int [not null]
+  CourseID int [not null]
+  WaiverReason text [not null]
+  SupportingDocumentation varchar(255)
+  RequestDate timestamp [default: `CURRENT_TIMESTAMP`]
+  Status enum [not null, note: "Pending, Approved, Denied, Withdrawn"]
+  ApprovalDate timestamp
+  ApprovedByID int
+  ApprovedByName varchar(255)
+  ApprovalReason text
+  ExpiryDate date
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  UpdatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    (StudentID, CourseID, PrerequisiteID)
+    StudentID
+    PrerequisiteID
+    Status
+    (StudentID, Status)
+  }
+}
+
+Table AIAgentLogs {
+  LogID int [pk, increment]
+  AgentName varchar(100) [not null]
+  StudentID int [not null]
+  ExecutionStartTime timestamp [not null]
+  ExecutionEndTime timestamp [not null]
+  ExecutionDurationMS int [not null]
+  InputParameters json [not null]
+  OutputData json [not null]
+  ErrorMessage text
+  ExecutionStatus enum [not null, note: "Success, Error, Partial_Error"]
+  RecommendationCount int
+  QueryCount int
+  AIModelUsed varchar(100)
+  TokensUsed int
+  CostUSD decimal(8,4)
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    StudentID
+    (StudentID, ExecutionStartTime)
+    AgentName
+    ExecutionStatus
+  }
+}
+
+// ============================================================================
+// AUDIT/HISTORY ENTITIES
+// ============================================================================
+
+Table RecommendationHistory {
+  HistoryID int [pk, increment]
+  RecommendationID int [not null]
+  StudentID int [not null]
+  Action enum [not null, note: "Created, Updated, Accepted, Rejected, Expired"]
+  OldValues json
+  NewValues json
+  ChangeReason varchar(255)
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    RecommendationID
+    StudentID
+    (StudentID, CreatedDate)
+  }
+}
+
+Table ScheduleHistory {
+  HistoryID int [pk, increment]
+  ScheduleID int [not null]
+  Action enum [not null, note: "Created, Updated, Deleted, Enrollment_Changed"]
+  OldValues json
+  NewValues json
+  ChangeReason varchar(255)
+  ChangedByID int
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    ScheduleID
+    (ScheduleID, CreatedDate)
+  }
+}
+
+Table WaiverHistory {
+  HistoryID int [pk, increment]
+  WaiverID int [not null]
+  StatusChange varchar(50) [not null]
+  PreviousStatus enum [not null]
+  NewStatus enum [not null]
+  ChangeReason varchar(255)
+  ChangedByID int
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    WaiverID
+    (WaiverID, CreatedDate)
+  }
+}
+
+Table AuditLog {
+  AuditID int [pk, increment]
+  EntityType varchar(100) [not null]
+  EntityID int [not null]
+  Action enum [not null, note: "Create, Read, Update, Delete"]
+  UserID int
+  UserType varchar(50) [not null]
+  OldValues json
+  NewValues json
+  IPAddress varchar(45)
+  UserAgent varchar(500)
+  CreatedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    EntityType
+    EntityID
+    UserID
+    (EntityType, EntityID)
+    (UserID, CreatedDate)
+  }
+}
+
+// ============================================================================
+// SYSTEM CONFIGURATION ENTITY
+// ============================================================================
+
+Table SystemConfiguration {
+  ConfigID int [pk, increment]
+  ConfigKey varchar(100) [unique, not null]
+  ConfigValue varchar(1000) [not null]
+  ConfigType varchar(50) [not null]
+  Description text
+  IsActive boolean [default: true]
+  LastModifiedDate timestamp [default: `CURRENT_TIMESTAMP`]
+  
+  indexes {
+    ConfigKey
+    IsActive
+  }
+}
+
+// ============================================================================
+// FOREIGN KEY RELATIONSHIPS
+// ============================================================================
+
+// Courses relationships
+Ref: Courses.DepartmentID > Departments.DepartmentID
+Ref: Courses.DifficultyLevelID > DifficultyLevels.DifficultyLevelID
+Ref: Courses.InstructionModeID > InstructionModes.InstructionModeID
+
+// Prerequisites relationships (self-referencing)
+Ref: Prerequisites.CourseID > Courses.CourseID
+Ref: Prerequisites.PrerequisiteCourseID > Courses.CourseID
+
+// Schedules relationships
+Ref: Schedules.CourseID > Courses.CourseID
+Ref: Schedules.InstructionModeID > InstructionModes.InstructionModeID
+
+// Students relationships
+Ref: Students.MajorID > Departments.DepartmentID
+Ref: Students.ConcentrationID > Departments.DepartmentID
+Ref: Students.ClassificationID > Classification.ClassificationID
+
+// AcademicHistory relationships
+Ref: AcademicHistory.StudentID > Students.StudentID
+Ref: AcademicHistory.CourseID > Courses.CourseID
+Ref: AcademicHistory.ScheduleID > Schedules.ScheduleID
+
+// StudentPreferences relationships
+Ref: StudentPreferences.StudentID - Students.StudentID
+Ref: StudentPreferences.PreferredInstructionModeID > InstructionModes.InstructionModeID
+
+// Recommendations relationships
+Ref: Recommendations.StudentID > Students.StudentID
+Ref: Recommendations.CourseID > Courses.CourseID
+Ref: Recommendations.ScheduleID > Schedules.ScheduleID
+Ref: Recommendations.LogID > AIAgentLogs.LogID
+
+// Waivers relationships
+Ref: Waivers.StudentID > Students.StudentID
+Ref: Waivers.PrerequisiteID > Prerequisites.PrerequisiteID
+Ref: Waivers.CourseID > Courses.CourseID
+
+// AIAgentLogs relationships
+Ref: AIAgentLogs.StudentID > Students.StudentID
+
+// History/Audit relationships
+Ref: RecommendationHistory.RecommendationID > Recommendations.RecommendationID
+Ref: RecommendationHistory.StudentID > Students.StudentID
+Ref: ScheduleHistory.ScheduleID > Schedules.ScheduleID
+Ref: WaiverHistory.WaiverID > Waivers.WaiverID
+
+// ============================================================================
+// SCHEMA DOCUMENTATION
+// ============================================================================
+// 
+// This DBML document defines the complete database schema for the
+// Academic Course Assistant System at Cox School of Business.
+// 
+// KEY DESIGN DECISIONS:
+// - StudentID should sync with SIS for data consistency
+// - CourseCode is unique globally (not per-term)
+// - Prerequisites supports complex chains and alternatives
+// - Recommendations stored for audit trail and feedback
+// - All timestamps use UTC with CURRENT_TIMESTAMP default
+// - JSON columns used for flexible extensibility
+// - Comprehensive indexes on high-traffic query patterns
+// 
+// AUDIT REQUIREMENTS:
+// - AuditLog tracks all CRUD operations for FERPA compliance
+// - History tables track entity lifecycle and changes
+// - All modifications timestamped automatically
+// 
+// AI AGENT INTEGRATION:
+// - AIAgentLogs track agent execution for debugging
+// - Recommendations include agent source and confidence
+// - Parameters/output stored as JSON for flexibility
+// 
+// PERFORMANCE OPTIMIZATION:
+// - Composite indexes on frequent query combinations
+// - Denormalized fields (GPA, CumulativeGPA) for performance
+// - Time-based indexes for range queries
+// - Student/Course indexes for join operations
+// 
+// CORE ENTITIES (6):
+// 1. Courses - Course catalog (400-500 records)
+// 2. Prerequisites - Prerequisite relationships (1,200-1,500 records)
+// 3. Schedules - Course sections (2,000-3,000 records)
+// 4. Students - Student profiles (2,500-5,000 records)
+// 5. AcademicHistory - Enrollments (50,000-100,000 records)
+// 6. StudentPreferences - Goals/constraints (1,500-2,500 records)
+// 
+// SUPPORTING FEATURE ENTITIES (4):
+// 1. Recommendations - AI recommendations (20,000-50,000 records)
+// 2. Waivers - Waiver requests (100-500 records)
+// 3. AIAgentLogs - Agent execution logs (100,000-500,000 records)
+// 4. Plus 3 History tables for audit trails
+// 
+// REFERENCE ENTITIES (4):
+// 1. Departments - Department definitions (10-15 records)
+// 2. DifficultyLevels - Difficulty classes (3-5 records)
+// 3. InstructionModes - Delivery modes (3-5 records)
+// 4. Classification - Student year levels (4 records)
+// 
+// CRITICAL INDEXES:
+// Designed for high-performance queries:
+// - Student course discovery by department/difficulty
+// - Schedule conflict detection (StartTime, EndTime)
+// - Prerequisite validation (CourseID lookups)
+// - Recommendation queries by student + date
+// - Academic history lookups by student/term
+// - Waiver status tracking
+// - Audit trail searches by entity type
+// 
+// DATA TYPE CONVENTIONS:
+// - IDs: INT with auto-increment (or match SIS format)
+// - Decimals: DECIMAL(p,s) for GPA, credits, scores
+// - Dates: DATE for dates only, TIMESTAMP for date+time
+// - Times: TIME for class meeting times
+// - Enums: Predefined value sets for status fields
+// - JSON: For flexible, extensible data (preferences, logs)
+// - Text: For descriptions, reasons, documentation
+// - Varchar: For codes, names, URLs, emails
