@@ -1,4 +1,5 @@
 # ignore the sqlite database file
 sqlite_database.db
 sqlite_database.db.backup
-.venv
+.venv/
+reports/
