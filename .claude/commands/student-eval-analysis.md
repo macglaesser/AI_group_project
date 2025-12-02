@@ -272,7 +272,7 @@ ORDER BY c.CourseCode
 
 ### Step 5: Generate HTML Report
 
-**Task**: Synthesize all agent outputs into a professional, viewable HTML report.
+**Task**: Synthesize all agent outputs into a professional, viewable HTML report with modern styling.
 
 **Report Sections**:
 
@@ -367,10 +367,6 @@ Ask the user for:
 - Include all agent outputs and analysis
 - Save to reports/ directory with timestamp
 - Provide user with report location and link
-
-**Phase 4: Logging**
-- Log the workflow execution to AIAgentLogs table using `log_agent_execution.py`.
-- Command: `python src/orchestration/log_agent_execution.py {student_id} "Multi-Agent Orchestrator" "{input_params_json}" "{output_data_json}" "{execution_status}" {recommendation_count} {query_count} "{execution_start_time_iso}" "{execution_end_time_iso}"`
 
 ---
 
