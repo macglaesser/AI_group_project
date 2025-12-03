@@ -1,96 +1,106 @@
 # Final Project Reflection
 
 ## Business Problem & Context
-- **Problem Solved**: Automated personalized course recommendations for students based on academic history, interests, and career goals. Replaces manual advisor-based course planning.
-- **Business Value**: Reduces advisor workload, improves student retention through better course fit, enables data-driven academic planning at scale.
-- **Estimated Savings**: ~15 mins per student consultation (100+ students/semester = 25+ hours saved). At $50/hr advisor time = $1,250/semester per advisor. For a university with 50 advisors = $62,500/semester.
+- **What problem does your solution solve?**
+  - The goal is to solve the common pain points students and advisors encounter when creating semester schedules or mapping out multi-year degree plans. Students often struggle to identify which courses to take, when to take them, and how to align their schedules with graduation requirements. Advisors face challenges in providing personalized guidance efficiently and are overburdened with repetitive tasks.
+- **Why is this valuable to a business?**
+  - This is valuable to an entity (such as SMU) because it enhances student satisfaction and retention by simplifying the course selection process. It also reduces the workload on academic advisors, allowing them to focus on more complex student needs and improving overall operational efficiency.
+- **What's the estimated time/cost savings or value created?**
+  - Students visit advisors 3-5 times per semester for scheduling questions. Current manual process taking 15-30 minutes per session. Automation happens in seconds. Potentially saving hundreds of hours per semester across the student body, leading to significant cost savings for the institution. Advisors spend 60-70% of their time on scheduling tasks, which could be reduced significantly with this solution. Avoids bottle necks with Advisor availability during peak times (registration periods).
 
 ## GenAI Application
-- **Why GenAI**: Multi-dimensional scoring (interest, career, difficulty, strategy) requires nuanced judgment. LLMs excel at context-aware evaluation beyond simple rule-based systems.
-- **Agentic Workflows**: Perfect fit. Separation into Profile Analyzer → Course Matcher → Recommendation Builder mirrors human advisor workflow (analyze student, evaluate options, build plan). Each agent has clear input/output contract.
-- **Limitations/Risks**: 
-  - Hallucinations in course recommendations (might suggest non-existent courses)
-  - Bias in career goal interpretation (may reinforce stereotypes)
-  - Recommendation quality depends entirely on accurate student data
-  - Requires fallback mechanism if scores don't differentiate courses well
+- **Why did you choose to use GenAI for this problem?**
+  - GenAI is well-suited for this problem due to its ability to understand and process complex academic requirements, degree plans, catalog descriptions, and prerequisites in natural language. GenAI can then generate personalized course recommendations tailored to individual student needs, making it an ideal tool for automating the scheduling process.
+- **How does GenAI improve upon existing solutions?**
+  - Existing solutions often rely on static databases or rule-based systems that lack flexibility and personalization. GenAI can interpret a wide range of inputs, including student preferences, academic history, and degree requirements, to provide dynamic and context-aware recommendations. This leads to a more tailored experience for students and advisors, improving satisfaction and outcomes.
+- **What makes this a good use case for agentic workflows vs. traditional software?**
+  - Traditional software solutions often rely on rigid rule-based systems that may not adapt well to the nuances of individual student needs and changing academic requirements. Agentic workflows powered by GenAI can dynamically interpret and respond to diverse inputs, providing more personalized and context-aware recommendations. This flexibility allows for a more user-centric approach, enhancing the overall experience for both students and advisors.
+- **What are the limitations or risks of using AI here?**
+  - Limitations include potential inaccuracies in course recommendations if the AI misinterprets degree requirements or student preferences. There is also a risk of bias in the training data, which could lead to unfair or suboptimal suggestions. Additionally, reliance on AI may reduce human oversight, potentially leading to errors that could impact students' academic progress. Ensuring data privacy and security is also a critical concern when handling sensitive student information.
 
 ## Technical Setup
-- **AI CLI**: Claude AI via `.claude/commands/` integration (orchestrator pattern)
-- **Sub-Agents**: 3 specialized agents
-  - Profile Analyzer: Parses academic history, calculates GPA, extracts intent
-  - Course Matcher: 4-criterion weighted scoring algorithm
-  - Recommendation Builder: Prerequisite verification, eligibility checking
-- **Tools Used**:
-  - Built-in: SQLite3 queries, JSON parsing, file I/O
-  - Custom: `database_queries.py` for 4 parameterized SQL queries
-  - No MCP servers configured (future opportunity)
-- **Why This Setup**: Mirrors real advisor workflow. JSON-only agent outputs ensure reliable parsing. SQLite provides lightweight persistence. Streamlit dashboard separates concerns (workflow vs UI).
+- **Which AI coding CLI did you use? (Claude Code, Gemini CLI, Cursor, other)**
+  - For this project, we used GitHub Copilot's Agentic system to streamline the development process. The models we selected were mainly Claude Haiku 4.5 and Claude Sonnet 4.5. GitHub Copilot successfully provided code suggestions and helped automate repetitive coding tasks, allowing us to focus on higher-level design and implementation. For the Agentic Workflow, we utilized the Gemini CLI to orchestrate the multi-agent interactions and manage the overall workflow with the .claude framework; therefore it will work for either Claude or Gemini CLI.
+- **What sub-agents did you leverage?**
+  - We developed three specialized agents: the Profile Analyzer Agent, the Course Matcher Agent, and the Recommendation Builder Agent. Each agent had distinct responsibilities, from analyzing student profiles to matching courses and building personalized reports for each student to review.
+- **What tools (built-in, MCP, or custom) did you use?**
+  - Built-in tools: SQLite3 database queries (parameterized SQL), JSON serialization/parsing, Python file I/O, system arguments
+  - Custom tools: `database_queries.py` script that executes 4 specialized SQL queries (student profile, academic history, available courses, prerequisites map)
+  - No MCP servers configured (identified as future enhancement opportunity)
+  - External integration: SQLite database (`sqlite_database.db`) for data persistence, Streamlit 1.51.0 for dashboard UI, Plotly 6.5.0 for visualizations, Pandas 2.3.3 for data processing
+- **Why did you choose this particular setup?**
+  - The three-agent architecture mirrors real-world academic advisor workflow: analyze student → match courses → build recommendations. This separation of concerns allows each agent to specialize and improves reliability of outputs.
+  - JSON-only communication between agents ensures structured, parseable results without markdown or explanations that could cause parsing failures.
+  - SQLite provides lightweight, single-file database persistence that works well for institutional use without requiring complex server infrastructure.
+  - Streamlit framework was chosen for rapid dashboard development and easy deployment—no complex frontend build required.
+  - Parameterized SQL queries prevent injection attacks and provide flexibility for complex multi-table joins across the academic database schema.
 
 ## Development Experience
 
 ### What Went Right
-- **Agent Specialization**: Breaking workflow into 3 agents reduced complexity—each agent could focus on single task with clear JSON contracts.
-- **JSON-Only Output**: Forcing strict JSON output eliminated parsing errors; agents naturally adapted to structure.
-- **Database Queries**: Parameterized SQL queries were flexible enough to handle complex joins across 8 tables without hardcoding.
-- **Prerequisite Checking**: Simple eligibility logic (all prerequisites met? yes/no) was surprisingly effective for edge cases.
+- **What worked better than expected?**
+  - SQLite worked surprisingly well as a lightweight database solution for prototyping the academic data model. Its simplicity allowed us to focus on building the AI agents and workflow without complex database administration. Everything connected well with the database for both the workflow and the dashboard.
+  - Natural language processing handled complex academic requirements and course descriptions better than expected, allowing for accurate course matching and recommendation generation.
+  - GitHub worked well for team collaboration, version control, and issue tracking throughout the project.
+  - Proof of concept built in days not weeks
+- **Which AI tools/agents were most helpful?**
+  - Profile Analyzer Agent nailed parsing student history and extracting interests from natural language. Gave us a solid foundation for the other agents.
+  - Course Matcher Agent's weighted scoring worked really well for ranking courses. AI understood the nuances between course content and student goals better than we expected.
+  - Recommendation Builder Agent's prerequisite checking kept us from recommending courses students couldn't actually take.
+  - GitHub Copilot cut down a lot of boilerplate code work, which freed us up to focus on agent design.
+  - Gemini CLI handled the multi-agent orchestration pretty smoothly overall.
+- **What was easier than you thought?**
+  - The multi-agent orchestration using Gemini CLI was more straightforward than anticipated.
+  - The integration of the Streamlit dashboard with the SQLite database was smoother than expected, enabling real-time data visualization with minimal setup.
 
 ### What Went Wrong
-- **Agent Output Validation**: Initially agents included markdown/explanations in JSON. Required strict prompts + examples to force JSON-only output.
-- **Course Matching Scoring**: Agents sometimes inflated scores for weak matches. Fixed by adding "be honest about scores" guidance + scoring guidelines.
-- **Prerequisite Chains**: Didn't initially handle transitive prerequisites (A requires B, B requires C). SQL now traverses chain.
-- **HTML Report Generation**: Not fully implemented—currently saved as structured data. Would need template engine for production.
+- **What challenges or roadblocks did you hit?**
+  - Foreign key issues in the database schema caused the workflow and webapp to fail initially. We had to restructure how prerequisites linked to courses to prevent unintended deletions.
+  - The agentic workflow required multiple iterations to get JSON parsing and inter-agent communication correct.
+  - Validating the correctness of course recommendations against degree requirements was challenging and required manual review.
+- **Where did AI tools/agents struggle or fail?**
+  - Gemini CLI sometimes struggled with orchestrating multi-agent interactions, especially when gathering and parsing data from the database. Session consistency was an issue. We'd need to re-prompt or adjust context between runs to get reliable behavior.
+- **What bugs or issues took longest to resolve?**
+  - Debugging the SQL queries took significant time, especially getting the prerequisites join to work correctly across multiple tables. 
+  - The foreign key issue happened multiple times and had to prompt copilot several times to allow the connections to the database to work without errors.
 
-**[TODO: ADD YOUR EXPERIENCE HERE]**
-- What challenges did YOU personally hit?
-- How long did specific tasks actually take?
-- What was harder/easier than you expected?
-- Any bugs that surprised you?
 
 ### Interesting/Surprising Learnings
-- **Prompt Precision Matters**: Even small wording changes ("return ONLY JSON" vs "output JSON") significantly impact compliance. Specificity > clarity.
-- **Agent Handoffs**: Passing JSON between agents is reliable if contracts are clear, but requires discipline in schema definition.
-- **Scoring Algorithms**: Weighted scoring with AI reasoning produces better results than pure algorithmic scoring—AI catches context that formulas miss.
-- **Cost of Orchestration**: Each agent call costs money. 3 sequential agents = 3 API calls per student. Caching would be essential for scale.
-
-**[TODO: ADD YOUR LEARNINGS HERE]**
-- What surprised YOU about working with agentic AI?
-- Any unexpected behaviors from Claude?
-- What did you learn about your own workflow?
-- Any "aha moments" with prompt engineering?
+- **What surprised you about working with agentic AI?**
+  - Design choices were automated to a greater extent than expected, allowing us to focus on high-level architecture. This surprised us, as we anticipated more manual coding.
+  - GenAI's ability to understand complex academic requirements and generate tailored recommendations was impressive and exceeded our expectations.
+  - Unexpected course pairings that the AI suggested based on student interests and career goals revealed insights we hadn't considered, but actually made sense upon review.
+- **What did you learn about prompt engineering or workflow design?**
+  - Specificity is key. Clearly defining each agent's role and expected outputs upfront made a big difference in workflow reliability. Vague instructions led to parsing failures.
+  - Iterative refinement of prompts based on observed outputs was essential to achieving the desired behavior from each agent. We went through at least 3 to 4 iterations per agent before outputs became reliable.
+- **How did this change your understanding of AI capabilities?**
+  - We really underestimated how well GenAI could handle domain-specific knowledge like academic course planning. It showed us that with the right prompts and data, AI can tackle complex, specialized tasks effectively. What surprised us most was that the AI could catch connections between student interests and courses that weren't obvious from just reading descriptions, suggesting course combinations that made sense even to domain experts upon reflection.
 
 ## If You Started Over
-- **Different Approach**: Would implement agent caching layer immediately rather than sequential calls. Could reduce latency 70%+.
-- **More Time On**: Testing edge cases (students with no completed courses, prerequisites not in catalog, circular dependencies).
-- **Less Time On**: Custom HTML templating—would use Jinja2 from start instead of building custom.
-- **Advice**: 
-  1. Start with crystal-clear input/output contracts for each agent (saves debugging time)
-  2. Use JSON exclusively for inter-agent communication (reduces parsing errors)
-  3. Build validation layer early (catch bad data before it hits agents)
-  4. Test with real messy data, not clean examples (prerequisites will have gaps/errors)
-  5. Plan for caching—sequential agent calls get expensive fast
-
-**[TODO: ADD YOUR PERSONAL INSIGHTS HERE]**
-- What would YOU do differently if starting fresh?
-- Did you discover any shortcuts/workarounds?
-- What tools would you have picked from the start?
-- Anything you'd skip entirely?
+- **What would you do differently?**
+  - Use MCP servers for live university system integration, real-time course availability, enrollment caps, and transcript data without manual data syncing.
+  - Integrate a chatbot for real-time student and advisor Q&A on course recommendations.
+  - Build in more robust explanations as to why certain courses were recommended to increase trust and transparency.
+  - Involve advisors in the design phase earlier to validate our assumptions about course matching logic.
+  - Test with diverse populations of students (first-generation, transfer, international, etc.) to stress-test scenarios from the beginning.
+- **What would you spend more/less time on?**
+  - More time on testing and validation of course recommendations against real student scenarios.
+  - More time on refining the user interface and experience of the dashboard to ensure ease of use for students and advisors. The current version is functional but not optimized for user experience.
+  - Less time on initial database schema design. We could have leveraged existing academic database schemas to save time instead of building from scratch.
+- **What advice would you give to someone doing a similar project?**
+  - Start with a clear understanding of the academic requirements and workflows involved in course scheduling.
+  - Understand what agents you need and clearly define their responsibilities upfront and before starting development.
+  - Engage with actual students and advisors early in the design process to gather requirements and feedback.
+  - Leverage existing tools and frameworks to speed up development, but be prepared to customize as needed for specific academic contexts.
 
 ## Business Impact Assessment
-- **Production Deployment**: 
-  - Would need: User authentication, audit logging, feedback collection (did recommendations help?), A/B testing
-  - Add MCP servers for course search, prerequisite verification, advisor override mechanism
-  - Implement result caching (same student profile generates same results for 24hrs)
-  
-- **Scale Requirements**:
-  - Current: ~100-300 students/semester = manageable sequential processing
-  - At Scale: Would need parallel processing + job queue (Celery/RabbitMQ)
-  - API endpoints instead of CLI interface
-  - Result caching + vectorized search (k-nearest-neighbor for similar students)
-  
-- **ROI Calculation**:
-  - **Inputs**: 500-student university, $50/hr advisor cost, 15 min saved per student
-  - **Annual Benefit**: 500 students × 0.25 hrs × $50 × 2 semesters = **$12,500/year**
-  - **Development Cost**: ~200 hours eng time = $20,000 (one-time)
-  - **Maintenance**: ~5 hrs/month = $3,000/year
-  - **Payback**: 1.6 years for $500 student cohort; scales better with larger schools
-  - **Intangible Benefits**: Improved student retention (+2% = $250k+), better course fit, reduced course drops
+- **How would this work in a real production environment?**
+  - This solution could be integrated into a university's existing student information system, providing real-time course recommendations during the registration process. Students would provide thier id number and specific interests, then a report would be generated and sent to them. From there the studnets could explore the recommend classes in the dashboard or refine their prompt for differnt courses. It would require collaboration with IT departments to ensure data security and compliance with educational regulations. The dashboard could be hosted on the university's intranet or cloud infrastructure, accessible to students and advisors.
+- **What would be needed to deploy this at scale?**
+  - Robust database infrastructure to handle large volumes of student and course data.
+  - Integration with existing student information systems for real-time data access.
+  - Scalable hosting solutions for the dashboard application to accommodate many concurrent users.
+  - Ongoing maintenance and updates to ensure the system remains accurate and relevant with changing course offerings and degree requirements.
+  - Training and support for students and advisors to effectively use the new tools.
+- **What's the ROI if a company implemented this? (make reasonable assumptions)**
+  - The ROI could be significant, with potential savings of hundreds of advisor hours per semester and improved student satisfaction leading to higher retention rates. Assuming an average advisor salary and the number of students served, the cost savings from reduced advisor workload could offset the development and maintenance costs within a few semesters. Additionally, improved course selection could lead to better academic outcomes, further enhancing the institution's reputation and attractiveness to prospective students.  - For example, if an advisor's time is valued at $50/hour and the system saves 200 hours per semester, that's a $10,000 saving per semester. Over a year, this amounts to $20,000 in savings per advisor.

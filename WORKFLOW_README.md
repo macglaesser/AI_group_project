@@ -60,7 +60,7 @@ gemini
 
 Then execute the command (see example below):
 ```
-Please run student-eval-analysis.md file found in .claude/commands/ for student 10001 who has interests in accounting and computer science
+Please run student-eval-analysis.md file found in .claude/commands/ to generate a report for student 10001 who has interests in accounting and computer science
 ```
 
 **You will be prompted to provide:**

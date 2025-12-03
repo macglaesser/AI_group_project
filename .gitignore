@@ -4,3 +4,4 @@ sqlite_database.db.backup
 .venv/
 reports/
 assets/
+reflection.pdf
