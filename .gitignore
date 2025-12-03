@@ -3,3 +3,4 @@ sqlite_database.db
 sqlite_database.db.backup
 .venv/
 reports/
+assets/

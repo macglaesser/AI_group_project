@@ -16,8 +16,8 @@ The dashboard provides:
 ## Technology Stack
 
 - **Framework**: Streamlit 1.51.0
-- **Data Processing**: pandas 2.2.3
-- **Visualization**: Plotly 5.24.1
+- **Data Processing**: pandas 2.3.3
+- **Visualization**: Plotly 6.5.0
 - **Database**: SQLite3
 - **Language**: Python 3.x
 
