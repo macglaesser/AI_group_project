@@ -1,30 +1,181 @@
 # Student Course Recommendation Workflow
 
-You are orchestrating a multi-agent academic advising system. Your role is to:
-1. Query the SQLite database to gather student data
-2. Delegate specialized tasks to different agents
-3. Synthesize all outputs into a comprehensive recommendation report
+Generates personalized course recommendations for students by analyzing academic history, interests, and career goals using a multi-agent orchestration system.
 
-## Workflow Overview
+## Usage
+```bash
+/student-eval-analysis <student_id> <interests_and_goals>
+```
 
-This command runs a complete multi-agent orchestration pipeline:
-- **Agent 1: Profile Analyzer** - Analyzes student academic history and creates profile
-- **Agent 2: Course Matcher** - Matches available courses to student profile  
-- **Agent 3: Recommendation Builder** - Creates personalized course recommendations with prerequisites
-- **Output: Comprehensive Report** - Generates a viewable HTML report of recommendations
+**Examples**:
+```bash
+# Analyze student 10001 interested in accounting and computer science
+/student-eval-analysis 10001 "accounting and computer science"
 
-## Setup Instructions
+# Analyze student 10002 interested in investment banking
+/student-eval-analysis 10002 "investment banking and corporate finance"
+```
 
-Before running this command:
+## What This Command Does
 
-1. **Specify the Student ID**: The command needs a target student. You will be asked for a student ID.
-2. **Specify Student Interests**: Provide the interests/goals you want the system to focus on.
+This workflow orchestrates three specialized agents to create personalized course recommendations:
+- **Profile Analysis**: Analyzes student academic history, calculates GPA, identifies strong subjects
+- **Course Matching**: Scores available courses based on interest alignment, career relevance, and difficulty fit
+- **Recommendation Building**: Creates personalized recommendations with prerequisite verification
+- **Report Generation**: Produces a comprehensive HTML report with actionable insights
 
-## Process
+---
 
-### Step 1: Gather Student Data from Database
+## Implementation Instructions
 
-First, I'll query the SQLite database at `sqlite_database.db` to collect all necessary information:
+You are the orchestrator for this workflow. Follow these steps carefully:
+
+### Step 1: Validate Arguments
+
+1. Check that you received exactly 2 arguments: `<student_id>` and `<interests_and_goals>`
+2. If arguments are missing, display usage information and exit
+3. Verify the student exists in the database by checking the StudentID in the Students table
+4. Display: "Starting course recommendation analysis for student: {student_id}"
+
+### Step 2: Query Student Data from Database
+
+Execute the database query script to gather all necessary information. This script will output four JSON objects. Save each of these to a file in the `reports/{student_id}` directory: `student_profile.json`, `academic_history.json`, `available_courses.json`, and `prerequisites_map.json`.
+
+```bash
+python src/orchestration/database_queries.py {student_id}
+```
+
+If student not found:
+- Display: "Error: Student ID '{student_id}' not found in database"
+- Display: "Verify the student ID and try again"
+- Exit
+
+If reviews found:
+- Display: "Found student profile for ID: {student_id}"
+- Display: "Academic history: {N} completed courses"
+- Display: "Course database: {M} active courses available"
+
+### Step 3: Prepare Output Directory
+
+1. Create a sub-directory in `reports/` named `{student_id}`.
+2. Use output directory: `reports/{student_id}/`
+3. Create a timestamp: `{YYYYMMDD}_{HHMMSS}`
+4. Display: "Output directory ready: reports/{student_id}/"
+5. Display: "Timestamp: {timestamp}"
+
+### Step 4: Run Analysis Scripts
+
+Display: "Running analysis scripts..."
+
+**1. Profile Analyzer**
+
+Manually analyze the student's profile, academic history, and interests to create a JSON file named `reports/{student_id}/profile_output.json`. The structure of this file should be as follows:
+
+```json
+{
+  "student_id": "string",
+  "FirstName": "string",
+  "LastName": "string",
+  "gpa": float,
+  "Major": "string",
+  "AcademicStanding": "string",
+  "strong_subjects": ["string"],
+  "interests": ["string"],
+  "career_goals": "string",
+  "preferred_difficulty": int,
+  "analysis_summary": "string"
+}
+```
+
+**2. Course Matcher**
+
+Execute the course matcher script. This script reads `reports/{student_id}/profile_output.json`, `reports/{student_id}/available_courses.json`, and `reports/{student_id}/prerequisites_map.json`, and writes the top 12 matched courses to `reports/{student_id}/matched_courses.json`.
+
+```bash
+python src/orchestration/course_matcher.py
+```
+
+**3. Recommendation Builder**
+
+Execute the recommendation builder script. This script reads `reports/{student_id}/profile_output.json`, `reports/{student_id}/matched_courses.json`, `reports/{student_id}/academic_history.json`, and `reports/{student_id}/prerequisites_map.json`, and writes the top 5 recommendations to `reports/{student_id}/recommendations.json`.
+
+```bash
+python src/orchestration/recommendation_builder.py
+```
+
+### Step 5: Aggregate Agent Outputs
+
+This step is now integrated into the execution of the scripts in Step 4. The output files are:
+1. `reports/{student_id}/profile_output.json`
+2. `reports/{student_id}/matched_courses.json`
+3. `reports/{student_id}/recommendations.json`
+
+Validate that these files are valid JSON.
+
+### Step 6: Generate Comprehensive HTML Report
+
+Execute the report generator script. This script reads the JSON files from the previous steps and generates a comprehensive HTML report.
+
+```bash
+python src/orchestration/report_generator.py
+```
+
+**Report Sections**:
+
+1. **Executive Summary**
+   - Student name and ID
+   - Current GPA, major, classification
+   - Academic standing
+   - Key strengths and interests
+
+2. **Student Profile Analysis** (from Profile Analyzer)
+   - Academic performance summary
+   - Strong subjects
+   - Career goals and interests
+   - Recommended difficulty level
+
+3. **Course Recommendations** (from Recommendation Builder)
+   - Top 5 recommended courses with:
+     - Relevance score and reasoning
+     - Eligibility status
+     - Prerequisites needed (if any)
+     - Personalized recommendation text
+     - Suggested semester
+
+4. **Prerequisite Roadmap**
+   - Courses to prioritize if prerequisites needed
+   - Suggested course sequence/timeline
+
+5. **Next Steps**
+   - Recommended action items
+   - How to register for courses
+   - Advisor contact information
+
+**Report Format**:
+- Professional HTML with CSS styling
+- Color-coded eligibility status (Green = Eligible, Yellow = Prerequisites Needed)
+- Responsive design for viewing on different devices
+- Clickable navigation/table of contents
+- Print-friendly formatting
+
+**Output Location**: 
+Save the report as `recommendation_report_{student_id}_{timestamp}.html` in the `reports/{student_id}/` directory
+
+Display: "Report generated successfully: reports/{student_id}/recommendation_report_{student_id}_{timestamp}.html"
+
+### Step 7: Summary and Next Steps
+
+Display completion summary:
+- Report location
+- Number of recommendations generated
+- Any prerequisite requirements identified
+- Suggestion to view recommendations in dashboard or share with advisor
+
+---
+
+## Database Query Details
+
+First, the SQLite database at `sqlite_database.db` will be queried to collect all necessary information:
 
 ```sql
 -- Query 1: Student Profile Data
@@ -97,309 +248,54 @@ ORDER BY c.CourseCode
 
 ---
 
-### Step 2: Invoke Profile Analyzer Agent
-
-**Task**: Create a student profile based on their academic history and stated interests.
-
-**Context for Agent**:
-- Student's completed courses with grades and semesters
-- Student's cumulative GPA
-- Stated interests and career goals (provided by user)
-- Academic performance trends
-
-**Delegation**:
-> Use the Profile Analyzer agent definition from `profile_analyzer_agent.md`
-
-**Input Data Structure**:
-```json
-{
-  "student_id": "{student_id_from_db}",
-  "user_query": "{user_provided_interests_and_goals}",
-  "completed_courses": [
-    {
-      "course_code": "FINA 3310",
-      "course_name": "Financial Management",
-      "grade": "A",
-      "credits": 3,
-      "semester": "Fall 2024"
-    }
-  ]
-}
-```
-
-**Expected Output from Agent**:
-```json
-{
-  "student_id": "string",
-  "gpa": 3.45,
-  "strong_subjects": ["Finance", "Accounting"],
-  "interests": ["corporate finance", "investment strategies"],
-  "career_goals": "investment banking",
-  "preferred_difficulty": 4,
-  "analysis_summary": "Brief summary"
-}
-```
-
----
-
-### Step 3: Invoke Course Matcher Agent
-
-**Task**: Match available courses to the student's profile and interests.
-
-**Context for Agent**:
-- Student profile from Step 2
-- All active courses from database
-- Course descriptions and prerequisites
-- Student's career goals and difficulty preference
-
-**Delegation**:
-> Use the Course Matcher agent definition from `course_matcher_agent.md`
-
-**Input Data Structure**:
-```json
-{
-  "student_profile": {
-    "student_id": "{from_step_2}",
-    "gpa": {gpa},
-    "strong_subjects": {strong_subjects},
-    "interests": {interests},
-    "career_goals": "{career_goals}",
-    "preferred_difficulty": {difficulty}
-  },
-  "available_courses": [
-    {
-      "course_id": "C001",
-      "course_code": "FINA 4350",
-      "course_name": "Advanced Corporate Finance",
-      "description": "Full description",
-      "department": "Finance",
-      "credits": 3,
-      "difficulty_level": 4,
-      "prerequisites": ["FINA 3310"]
-    }
-  ]
-}
-```
-
-**Expected Output from Agent**:
-```json
-[
-  {
-    "course_id": "C001",
-    "course_code": "FINA 4350",
-    "course_name": "Advanced Corporate Finance",
-    "description": "Course description",
-    "department": "Finance",
-    "credits": 3,
-    "difficulty_level": 4,
-    "prerequisites": ["FINA 3310"],
-    "relevance_score": 9.2,
-    "match_reasoning": "Matches student's finance interest"
-  }
-]
-```
-
----
-
-### Step 4: Invoke Recommendation Builder Agent
-
-**Task**: Create personalized course recommendations with prerequisite checking.
-
-**Context for Agent**:
-- Student profile from Step 2
-- Matched courses from Step 3 (top 12)
-- Student's completed courses
-- Prerequisite relationships from database
-
-**Delegation**:
-> Use the Recommendation Builder agent definition from `recommendation_builder_agent.md`
-
-**Input Data Structure**:
-```json
-{
-  "student_profile": {
-    "student_id": "{from_step_2}",
-    "interests": {interests},
-    "career_goals": "{career_goals}",
-    "preferred_difficulty": {difficulty}
-  },
-  "matched_courses": [
-    {
-      "course_id": "C001",
-      "course_code": "FINA 4350",
-      "course_name": "Advanced Corporate Finance",
-      "difficulty_level": 4,
-      "relevance_score": 9.2,
-      "prerequisites": ["FINA 3310"]
-    }
-  ],
-  "student_completed_courses": [
-    {
-      "course_code": "FINA 3310",
-      "course_name": "Financial Management"
-    }
-  ],
-  "prerequisite_map": {
-    "FINA 4350": ["FINA 3310", "ACCT 2301"]
-  }
-}
-```
-
-**Expected Output from Agent**:
-```json
-{
-  "recommendations": [
-    {
-      "rank": 1,
-      "course_id": "C001",
-      "course_code": "FINA 4350",
-      "course_name": "Advanced Corporate Finance",
-      "credits": 3,
-      "difficulty_level": 4,
-      "relevance_score": 9.2,
-      "eligibility_status": "eligible",
-      "missing_prerequisites": [],
-      "recommendation_text": "Personalized recommendation",
-      "suggested_semester": "Fall 2025"
-    }
-  ],
-  "total_recommendations": 5,
-  "prerequisites_to_prioritize": []
-}
-```
-
----
-
-### Step 5: Generate HTML Report
-
-**Task**: Synthesize all agent outputs into a professional, viewable HTML report with modern styling.
-
-**Report Sections**:
-
-1. **Executive Summary**
-   - Student name and ID
-   - Current GPA, major, classification
-   - Academic standing
-   - Key strengths and interests
-
-2. **Student Profile Analysis** (from Profile Analyzer)
-   - Academic performance summary
-   - Strong subjects
-   - Career goals and interests
-   - Recommended difficulty level
-
-3. **Course Recommendations** (from Recommendation Builder)
-   - Top 5 recommended courses with:
-     - Relevance score and reasoning
-     - Eligibility status
-     - Prerequisites needed (if any)
-     - Personalized recommendation text
-     - Suggested semester
-
-4. **Prerequisite Roadmap**
-   - Courses to prioritize if prerequisites needed
-   - Suggested course sequence/timeline
-
-5. **Next Steps**
-   - Recommended action items
-   - How to register for courses
-   - Advisor contact information
-
-**Report Format**:
-- Professional HTML with CSS styling
-- Color-coded eligibility status (Green = Eligible, Yellow = Prerequisites Needed)
-- Responsive design for viewing on different devices
-- Clickable navigation/table of contents
-- Print-friendly formatting
-
-**Output Location**: 
-Save the report as `recommendation_report_{student_id}_{timestamp}.html` in the reports/ directory
-
----
-
-## Data Integration Points
-
-The system integrates with your SQLite database (`sqlite_database.db`) using these queries:
-
-### Query Patterns for Agents
-
-**For Profile Analyzer**:
-- Join Students → AcademicHistory → Courses → Departments/DifficultyLevels
-- Calculate GPA from grades and credit hours
-- Identify trends in performance by semester
-
-**For Course Matcher**:
-- Select all active courses with full details
-- Include prerequisites and difficulty levels
-- Filter by status = 'Active' and department relevance
-
-**For Recommendation Builder**:
-- Cross-reference student's completed courses against prerequisites
-- Build prerequisite map from Prerequisites table
-- Ensure no course duplication in recommendations
-
----
-
-## Workflow Execution Steps
-
-### BEFORE YOU START:
-Ask the user for:
-1. **Student ID**: Which student should we analyze? (e.g., 100001)
-2. **Student Interests/Goals**: What are their interests and career goals? (e.g., "I'm interested in finance and investment strategies. I want to work in investment banking.")
-
-### EXECUTION:
-
-**Phase 1: Database Query**
-- Execute the `database_queries.py` script to retrieve student profile, academic history, available courses, and prerequisite map.
-- Command: `python src/orchestration/database_queries.py {student_id}`
-- The script will output JSON data to stdout. Capture this output for further processing.
-
-**Phase 2: Agent Orchestration**
-- Call Profile Analyzer with student data
-- Parse JSON response from Profile Analyzer
-- Call Course Matcher with profile and courses
-- Parse JSON response from Course Matcher
-- Call Recommendation Builder with profiles and matched courses
-- Parse JSON response from Recommendation Builder
-
-**Phase 3: Report Generation**
-- Create professional HTML report
-- Include all agent outputs and analysis
-- Save to reports/ directory with timestamp
-- Provide user with report location and link
-
----
-
 ## Agent Specifications
 
-Each agent follows strict JSON-only output requirements. Ensure:
+Each agent follows strict JSON-only output requirements:
 
-1. **Profile Analyzer** outputs ONLY valid JSON (no markdown, no explanation)
-2. **Course Matcher** outputs ONLY JSON array (no markdown, no explanation)
-3. **Recommendation Builder** outputs ONLY JSON object (no markdown, no explanation)
+### Profile Analyzer Agent (.claude/agents/profile_analyzer_agent.md)
+- Input: Student ID, user interests query, completed courses list
+- Output: ONLY valid JSON object with student profile
+- Required fields: student_id, gpa, strong_subjects, interests, career_goals, preferred_difficulty, analysis_summary
 
-All outputs should be parseable JSON without additional text wrapping.
+### Course Matcher Agent (.claude/agents/course_matcher_agent.md)
+- Input: Student profile, available courses list
+- Output: ONLY valid JSON array of top 12 courses
+- Required fields per course: course_id, course_code, course_name, relevance_score, match_reasoning
+- Scoring: Interest (40%) + Career (30%) + Difficulty (20%) + Strategy (10%)
+
+### Recommendation Builder Agent (.claude/agents/recommendation_builder_agent.md)
+- Input: Student profile, matched courses, completed courses, prerequisite map
+- Output: ONLY valid JSON object with top 5 recommendations
+- Required fields per recommendation: rank, course_code, eligibility_status, missing_prerequisites, recommendation_text, suggested_semester
+- Logic: Skip completed courses, check prerequisites, prioritize eligible courses
 
 ---
 
 ## Error Handling
 
-If an agent fails:
-- Capture the error message
-- Log to AIAgentLogs with ExecutionStatus: "Partial_Error"
-- Provide user-friendly error message
-- Suggest retry options
+If any step fails:
+- Capture error details and display to user
+- Log execution status
+- Suggest retry with different parameters
+- Provide troubleshooting steps
 
 ---
 
-## Ready to Begin?
+## Example Workflow Execution
 
-To start the workflow:
+```
+Input: /student-eval-analysis 10001 "accounting and computer science"
 
-1. **Provide Student ID**: Enter the student ID you want to analyze
-2. **Provide Interests**: Describe the student's interests, career goals, and any specific focus areas
-3. The system will orchestrate all agents and generate a comprehensive recommendation report
+Step 1: Validate arguments ✓
+Step 2: Query database with python src/orchestration/database_queries.py 10001 ✓
+Step 3: Prepare output directory (reports/10001/) ✓
+Step 4: Launch 3 agents in parallel
+  Agent 1: Profile Analyzer → 10001/profile_output.json ✓
+  Agent 2: Course Matcher → 10001/matched_courses.json ✓
+  Agent 3: Recommendation Builder → 10001/recommendations.json ✓
+Step 5: Aggregate outputs ✓
+Step 6: Generate HTML report ✓
+Step 7: Display completion summary
 
-Would you like to proceed? Please provide:
-- Student ID: 
-- Student Interests/Goals:
+Output: reports/10001/recommendation_report_10001_20251203_120000.html
+```
