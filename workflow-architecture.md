@@ -1,654 +1,828 @@
-# Workflow Architecture Documentation
+# Multi-Agent Course Recommendation Workflow Architecture
 
 ## 1. Overview
 
-### Workflow: Student Course Recommendation System
+### System Description
 
-**Purpose**: A comprehensive multi-agent orchestration system that analyzes student academic history and provides personalized course recommendations based on interests, career goals, and academic performance.
+This project implements a sophisticated **multi-agent orchestration system** for personalized academic course recommendations. The system analyzes student academic history, interests, and career goals to provide tailored course suggestions with comprehensive prerequisite verification and enrollment guidance.
 
-**CLI Tool Used**: Claude AI (via `.claude/commands/` integration) - The system uses Claude as the orchestrator to delegate tasks to specialized agents and synthesize results.
+### AI Coding CLI Tool Used
 
-**Workflow Definition Location**: `.claude/commands/student-eval-analysis.md`
+**Primary Tool**: Claude Code CLI / Gemini CLI
+- The workflow is built using the `.claude` framework which is compatible with both **Claude Code CLI** and **Gemini CLI**
+- The reflection notes indicate that **Gemini CLI** was used for multi-agent orchestration during development
+- The system uses Claude AI models (Haiku 4.5 and Sonnet 4.5) for agent execution
+- GitHub Copilot was used during development for code generation assistance
 
-**Key Capabilities**:
-- Automated student profile analysis from academic history
-- Intelligent course matching based on interests and goals
-- Prerequisite-aware recommendation generation
-- Professional HTML report generation with timestamps
+### Workflow Purpose
+
+The workflow performs the following high-level operations:
+1. **Student Profile Analysis** - Evaluates academic performance, interests, and career goals
+2. **Course Matching** - Scores and ranks courses based on multi-criteria relevance analysis
+3. **Recommendation Generation** - Creates personalized course recommendations with prerequisite verification
+4. **Report Creation** - Generates professional HTML reports for students and advisors
 
 ---
 
-## 2. Workflow Diagram
+## 2. Mermaid Diagram
 
-Since Mermaid rendering can be inconsistent, here's the workflow visualized as an ASCII flow diagram:
-
+```mermaid
+flowchart TD
+    Start([Student Evaluation Request]) --> ValidateInput[Validate Input Arguments]
+    ValidateInput --> |student_id + interests| CheckDB{Student Exists<br/>in Database?}
+    
+    CheckDB -->|No| ErrorExit([Exit with Error])
+    CheckDB -->|Yes| DatabaseQueries[Database Queries Script<br/>database_queries.py]
+    
+    DatabaseQueries --> OutputJSON1[/student_profile.json/]
+    DatabaseQueries --> OutputJSON2[/academic_history.json/]
+    DatabaseQueries --> OutputJSON3[/available_courses.json/]
+    DatabaseQueries --> OutputJSON4[/prerequisites_map.json/]
+    
+    OutputJSON1 --> ProfileAgent[Profile Analyzer Agent<br/>Claude AI]
+    OutputJSON2 --> ProfileAgent
+    
+    ProfileAgent --> ProfileOutput[/profile_output.json/]
+    
+    ProfileOutput --> MatcherScript[Course Matcher Script<br/>course_matcher.py]
+    OutputJSON3 --> MatcherScript
+    OutputJSON4 --> MatcherScript
+    
+    MatcherScript --> MatchedOutput[/matched_courses.json/]
+    
+    MatchedOutput --> RecBuilder[Recommendation Builder Script<br/>recommendation_builder.py]
+    ProfileOutput --> RecBuilder
+    OutputJSON2 --> RecBuilder
+    OutputJSON4 --> RecBuilder
+    
+    RecBuilder --> RecsOutput[/recommendations.json/]
+    
+    RecsOutput --> ReportGen[Report Generator Script<br/>report_generator.py]
+    ProfileOutput --> ReportGen
+    
+    ReportGen --> FinalReport[/recommendation_report.html/]
+    FinalReport --> Complete([Workflow Complete])
+    
+    style ProfileAgent fill:#e1f5ff,stroke:#0366d6,stroke-width:3px
+    style Start fill:#d4edda,stroke:#28a745
+    style Complete fill:#d4edda,stroke:#28a745
+    style ErrorExit fill:#f8d7da,stroke:#dc3545
+    style DatabaseQueries fill:#fff3cd,stroke:#856404
+    style MatcherScript fill:#fff3cd,stroke:#856404
+    style RecBuilder fill:#fff3cd,stroke:#856404
+    style ReportGen fill:#fff3cd,stroke:#856404
+    
+    subgraph "Data Storage (SQLite)"
+        DB[(sqlite_database.db)]
+    end
+    
+    subgraph "Output Directory: reports/{student_id}/"
+        OutputJSON1
+        OutputJSON2
+        OutputJSON3
+        OutputJSON4
+        ProfileOutput
+        MatchedOutput
+        RecsOutput
+        FinalReport
+    end
+    
+    DatabaseQueries -.->|SQL Queries| DB
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│  STUDENT COURSE RECOMMENDATION WORKFLOW - COMPLETE FLOW                 │
-└─────────────────────────────────────────────────────────────────────────┘
 
-STEP 1: USER INPUT
-┌──────────────────────────┐
-│ Student ID: 10001        │
-│ Interests: accounting &  │
-│            comp science  │
-└────────────┬─────────────┘
-             │
-             ▼
-STEP 2: DATABASE QUERIES (4 Parallel Queries)
-┌──────────────────────────┬──────────────────────────┬──────────────────────────┬──────────────────────────┐
-│ Query 1:                 │ Query 2:                  │ Query 3:                 │ Query 4:                 │
-│ Student Profile          │ Academic History         │ Available Courses        │ Prerequisites Map        │
-│ - StudentID              │ - Completed courses      │ - Course catalog         │ - Prerequisites          │
-│ - Name                   │ - Grades                 │ - Descriptions           │ - Relationships          │
-│ - GPA                    │ - Terms                  │ - Difficulty levels      │ - Min grades             │
-│ - Major                  │ - Credits                │ - Credits                │                          │
-└────────────┬─────────────┴──────────────────────┬────┴──────────────────┬────┴──────────────────────┘
-             │                                   │                       │
-             └───────────────────┬───────────────┘                       │
-                                 │                                       │
-                                 ▼                                       │
-                    DATABASE OUTPUT (JSON)◄────────────────────────────┘
-                                 │
-                                 ▼
-STEP 3: AGENT 1 - PROFILE ANALYZER
-┌────────────────────────────────────────────────┐
-│ Input: Student ID, interests, completed courses │
-├────────────────────────────────────────────────┤
-│ Process:                                        │
-│  • Calculate GPA from grades                   │
-│  • Extract interests from user query           │
-│  • Identify strong subjects                    │
-│  • Recommend difficulty level (1-5)            │
-├────────────────────────────────────────────────┤
-│ Output: Student Profile JSON                   │
-│ {                                              │
-│   "student_id": "10001",                       │
-│   "gpa": 3.45,                                 │
-│   "strong_subjects": ["Accounting", "Finance"],│
-│   "interests": ["accounting", "comp science"], │
-│   "career_goals": "investment banking",        │
-│   "preferred_difficulty": 4                    │
-│ }                                              │
-└────────────┬─────────────────────────────────┘
-             │
-             ▼
-STEP 4: AGENT 2 - COURSE MATCHER
-┌────────────────────────────────────────────────┐
-│ Input: Student profile + Available courses      │
-├────────────────────────────────────────────────┤
-│ Scoring (weighted):                             │
-│  • Interest Alignment:     40%                 │
-│  • Career Relevance:       30%                 │
-│  • Difficulty Match:       20%                 │
-│  • Strategic Value:        10%                 │
-│                                                │
-│ Output: Top 12 Courses JSON                    │
-│ [                                              │
-│   {                                            │
-│     "course_code": "FINA 4350",                │
-│     "course_name": "Advanced Corp Finance",   │
-│     "relevance_score": 9.2,                    │
-│     "match_reasoning": "..."                   │
-│   },                                           │
-│   ... (11 more)                               │
-│ ]                                              │
-└────────────┬─────────────────────────────────┘
-             │
-             ▼
-STEP 5: AGENT 3 - RECOMMENDATION BUILDER
-┌────────────────────────────────────────────────┐
-│ Input: Profile, matched courses, prerequisites │
-├────────────────────────────────────────────────┤
-│ Process:                                        │
-│  • Check if course already completed           │
-│  • Verify prerequisite requirements            │
-│  • Determine eligibility status                │
-│  • Create personalized recommendation          │
-│  • Suggest semester                            │
-│                                                │
-│ Output: Top 5 Recommendations JSON             │
-│ {                                              │
-│   "recommendations": [                         │
-│     {                                          │
-│       "rank": 1,                               │
-│       "course_code": "FINA 4350",              │
-│       "eligibility_status": "eligible",        │
-│       "recommendation_text": "...",            │
-│       "suggested_semester": "Fall 2025"        │
-│     },                                         │
-│     ... (4 more)                              │
-│   ]                                            │
-│ }                                              │
-└────────────┬─────────────────────────────────┘
-             │
-             ▼
-STEP 6: REPORT GENERATION
-┌────────────────────────────────────────────────┐
-│ Synthesize all outputs into HTML Report        │
-├────────────────────────────────────────────────┤
-│ Report Sections:                                │
-│  1. Executive Summary                          │
-│  2. Student Profile Analysis                   │
-│  3. Course Recommendations (Top 5)             │
-│  4. Prerequisite Roadmap                       │
-│  5. Next Steps                                 │
-│                                                │
-│ Styling:                                       │
-│  • Professional CSS layout                     │
-│  • Color-coded eligibility                     │
-│  • Responsive design                           │
-│  • Print-friendly                              │
-└────────────┬─────────────────────────────────┘
-             │
-             ▼
-STEP 7: OUTPUT
-┌────────────────────────────────────────────────┐
-│ File: recommendation_report_10001_20251202.html│
-│ Location: reports/ directory                   │
-│ Status: Ready for viewing/download             │
-└────────────────────────────────────────────────┘
+### Detailed Agent Flow
+
+```mermaid
+graph TB
+    subgraph "Main Command: /student-eval-analysis"
+        CMD[student-eval-analysis.md<br/>Orchestrator]
+    end
+    
+    subgraph "Data Collection Phase"
+        CMD --> DBQ[database_queries.py]
+        DBQ -->|Query 1| Q1[Student Profile Query]
+        DBQ -->|Query 2| Q2[Academic History Query]
+        DBQ -->|Query 3| Q3[Active Courses Query]
+        DBQ -->|Query 4| Q4[Prerequisites Map Query]
+        
+        Q1 -.-> SQLDB[(SQLite DB)]
+        Q2 -.-> SQLDB
+        Q3 -.-> SQLDB
+        Q4 -.-> SQLDB
+    end
+    
+    subgraph "Analysis Phase - AI Agent"
+        PA[Profile Analyzer Agent<br/>profile_analyzer_agent.md]
+        PA -->|Analyzes| GPA[Calculate GPA]
+        PA -->|Extracts| INT[Extract Interests]
+        PA -->|Identifies| STR[Strong Subjects]
+        PA -->|Recommends| DIFF[Difficulty Level]
+    end
+    
+    subgraph "Matching Phase - Python Script"
+        CM[course_matcher.py]
+        CM -->|40% Weight| INTA[Interest Alignment]
+        CM -->|30% Weight| CAR[Career Relevance]
+        CM -->|20% Weight| DIFM[Difficulty Match]
+        CM -->|10% Weight| STRA[Strategic Value]
+        CM --> SCORE[Calculate Relevance Scores]
+    end
+    
+    subgraph "Recommendation Phase - Python Script"
+        RB[recommendation_builder.py]
+        RB --> ELIG[Check Eligibility]
+        RB --> PREREQ[Verify Prerequisites]
+        RB --> RANK[Rank by Relevance + Eligibility]
+        RB --> TEXT[Generate Personalized Text]
+    end
+    
+    subgraph "Report Phase - Python Script"
+        RG[report_generator.py]
+        RG --> HTML[Generate HTML Structure]
+        RG --> CSS[Apply Professional Styling]
+        RG --> CONTENT[Populate Content Sections]
+    end
+    
+    CMD --> DBQ
+    DBQ --> PA
+    PA --> CM
+    CM --> RB
+    RB --> RG
+    
+    style PA fill:#e1f5ff,stroke:#0366d6,stroke-width:3px
+    style CMD fill:#d1ecf1,stroke:#0c5460,stroke-width:2px
 ```
 
 ---
 
 ## 3. Components Table
 
-| Component Type | Name | Purpose | Dependencies |
-|----------------|------|---------|--------------|
-| **Main Workflow** | Student Course Recommendation System | Orchestrate multi-agent pipeline for course recommendations | `.claude/commands/student-eval-analysis.md`, SQLite database |
-| **Sub-Agent** | Profile Analyzer | Analyze student academic history and create profile | Student ID, completed courses data, user interests |
-| **Sub-Agent** | Course Matcher | Match available courses to student profile using weighted scoring | Student profile (from Agent 1), course catalog |
-| **Sub-Agent** | Recommendation Builder | Create personalized recommendations with prerequisite checking | Student profile (from Agent 1), matched courses (from Agent 2), prerequisite map |
-| **Tool** | Database Query Script | Execute SQL queries against SQLite database | `src/orchestration/database_queries.py`, `sqlite_database.db` |
-| **Tool** | HTML Report Generator | Synthesize agent outputs into professional HTML report | All agent outputs, CSS styling templates |
-| **Data Source** | SQLite Database | Central repository for student, course, and prerequisite data | `sqlite_database.db` |
-| **Reference Data** | Agent Definitions | JSON output specifications and processing rules | `.claude/agents/profile_analyzer_agent.md`, `.claude/agents/course_matcher_agent.md`, `.claude/agents/recommendation_builder_agent.md` |
+### Main Components
+
+| Type | Name | Purpose | Dependencies |
+|------|------|---------|--------------|
+| **Main Workflow** | `student-eval-analysis.md` | Orchestrates the entire multi-agent pipeline | Claude/Gemini CLI, SQLite, all agents |
+| **AI Agent** | `profile_analyzer_agent.md` | Analyzes student history, calculates GPA, extracts interests | `student_profile.json`, `academic_history.json` |
+| **AI Agent** | `course_matcher_agent.md` | Scores and ranks courses using weighted criteria | `profile_output.json`, `available_courses.json` |
+| **AI Agent** | `recommendation_builder_agent.md` | Creates personalized recommendations with prerequisites | `profile_output.json`, `matched_courses.json`, `academic_history.json` |
+
+### Python Scripts
+
+| Name | Purpose | Dependencies |
+|------|---------|--------------|
+| `database_queries.py` | Executes 4 SQL queries to extract data | SQLite database |
+| `course_matcher.py` | Implements course scoring algorithm | `profile_output.json`, `available_courses.json` |
+| `recommendation_builder.py` | Builds recommendations with prerequisite checks | `profile_output.json`, `matched_courses.json`, `academic_history.json` |
+| `report_generator.py` | Generates professional HTML report | `profile_output.json`, `recommendations.json` |
+
+### Database Tables
+
+| Table | Purpose | Dependencies |
+|-------|---------|--------------|
+| `Students` | Student profile, GPA, major, classification | None |
+| `AcademicHistory` | Completed courses with grades | Students, Courses |
+| `Courses` | Course catalog with descriptions, difficulty | Departments, DifficultyLevels |
+| `Prerequisites` | Course prerequisite requirements | Courses |
+| `Departments` | Academic departments/schools | None |
+| `DifficultyLevels` | Course difficulty scale (1-5) | None |
+| `Classification` | Student classification levels | None |
+
+### Output Files
+
+| File | Purpose | Generated By |
+|------|---------|--------------|
+| `student_profile.json` | Raw student profile data | Database queries |
+| `academic_history.json` | Completed courses list | Database queries |
+| `available_courses.json` | All active courses | Database queries |
+| `prerequisites_map.json` | Prerequisite mappings | Database queries |
+| `profile_output.json` | Student analysis | Profile Analyzer Agent |
+| `matched_courses.json` | Top 12 scored courses | Course Matcher Script |
+| `recommendations.json` | Top 5 recommendations | Recommendation Builder |
+| `recommendation_report_{id}_{timestamp}.html` | Final HTML report | Report Generator |
 
 ---
 
 ## 4. Tool Usage
 
-### 4.1 Built-in Tools Used
+### Built-in Tools Used
 
-| Tool | Purpose | Usage Location | Method |
-|------|---------|-----------------|--------|
-| **SQLite Query Execution** | Execute parameterized SQL queries | Database Query Phase | `database_queries.py` uses `sqlite3.connect()` and `cursor.execute()` |
-| **JSON Parsing/Serialization** | Convert data between Python objects and JSON | Throughout workflow | `json.dumps()` and `json.loads()` |
-| **File I/O** | Read agent definitions and write output reports | Report generation | Write HTML to `reports/` directory with timestamp |
-| **System Arguments** | Accept student ID from command line | `database_queries.py main()` | `sys.argv[1]` captures student ID parameter |
+| Category | Tools | Usage |
+|----------|-------|-------|
+| **File I/O** | `open()`, `json.load()`, `json.dump()` | Read/write JSON files |
+| **Database** | SQLite3 library | Execute SQL queries |
+| **CLI Arguments** | `sys.argv` | Accept command parameters |
+| **JSON Processing** | `json` module | Serialize/deserialize data |
+| **String Manipulation** | Python string methods | Text processing and matching |
+| **Date/Time** | `datetime` module | Generate timestamps |
+| **File System** | `os` module | Directory management |
+| **List Operations** | List comprehensions, sorting | Rank and filter courses |
+| **Math Operations** | Arithmetic operators | Calculate GPA and scores |
 
-### 4.2 MCP Servers / Custom Tools
+### MCP Servers Configured
 
-**None configured in current implementation.** The system uses:
-- Standard Python SQLite3 library
-- Claude AI API for agent processing
-- Native file system operations
+**None** - The project currently does not use any MCP (Model Context Protocol) servers.
 
-### 4.3 External APIs/Services Integrated
+**Potential Future Enhancement** (noted in reflection):
+- MCP server for live university system integration
+- Real-time course availability tracking
+- Enrollment caps and waitlist management
+- Live transcript data access
+- Registration system integration
 
-| Service | Purpose | Integration Point |
-|---------|---------|-------------------|
-| **Claude AI API** | LLM backbone for agent processing | Invoked during "Agent Orchestration Phase" |
-| **SQLite Database** | Data persistence and querying | All database operations |
+### Custom Tools Created
 
-### 4.4 Database Tools & Operations
+| Tool | Type | Purpose | Key Details |
+|------|------|---------|-------------|
+| **Database Query Tool** | Python Script | Execute 4 SQL queries | Parameterized queries in `database_queries.py` |
+| **Course Scoring** | Python Script | Multi-criteria scoring | 40% interest + 30% career + 20% difficulty + 10% strategy |
+| **Prerequisite Checker** | Python Script | Validate eligibility | Compare requirements vs completed courses |
+| **Report Generator** | Python Script | Create HTML reports | Template-based with embedded CSS |
 
-| Operation | SQL Location | Purpose |
-|-----------|--------------|---------|
-| **Student Profile Query** | `database_queries.py` lines 27-34 | Retrieve student info, major, GPA, classification |
-| **Academic History Query** | `database_queries.py` lines 37-47 | Get completed courses with grades and semesters |
-| **Available Courses Query** | `database_queries.py` lines 50-63 | Fetch all active courses with difficulty and prerequisites |
-| **Prerequisites Map Query** | `database_queries.py` lines 66-76 | Build prerequisite relationships and grade requirements |
+### External APIs or Services Integrated
+
+**None** - The workflow is entirely self-contained and operates on local data.
+
+**Current External Dependencies**:
+- Claude/Gemini CLI for AI agent orchestration
+- Claude AI API (via CLI) for natural language understanding and analysis
+- SQLite database engine (embedded, not external service)
+
+**No External Services Used**:
+- ❌ No web APIs
+- ❌ No cloud services
+- ❌ No third-party SaaS integrations
+- ❌ No external AI model APIs (all through Claude CLI)
 
 ---
 
 ## 5. Data Flow
 
-### 5.1 Input Requirements
+### Input Requirements
 
-**User Inputs**:
-1. **Student ID**: Target student for analysis (e.g., `10001`)
-2. **Interests/Career Goals**: Text describing student's interests and objectives (e.g., "accounting and computer science")
+| Input | Source | Format | Example |
+|-------|--------|--------|---------|
+| **Student ID** | User command argument | Integer/String | `10001` |
+| **Interests & Goals** | User command argument | Natural language text | `"accounting and computer science"` |
+| **Student Profile** | SQLite database | SQL query result → JSON | Student name, GPA, major, classification |
+| **Academic History** | SQLite database | SQL query result → JSON | List of completed courses with grades |
+| **Course Catalog** | SQLite database | SQL query result → JSON | All active courses with descriptions |
+| **Prerequisites Map** | SQLite database | SQL query result → JSON | Course prerequisite requirements |
 
-**System Inputs**:
-- `sqlite_database.db`: Complete academic database with all student, course, and prerequisite data
-- Agent definitions in `.claude/agents/` directory
-
-### 5.2 Data Movement Between Agents
+### Data Movement Between Agents
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                      DATABASE QUERY PHASE                               │
-│  Output: 4 JSON objects (profile, history, courses, prerequisites)      │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 1: Data Collection (database_queries.py)                     │
+│  ┌──────────────┐                                                   │
+│  │ SQLite DB    │ ──SQL──> student_profile.json                     │
+│  │              │ ──SQL──> academic_history.json                    │
+│  │              │ ──SQL──> available_courses.json                   │
+│  └──────────────┘ ──SQL──> prerequisites_map.json                   │
+└─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│ AGENT 1: PROFILE ANALYZER                                               │
-│                                                                         │
-│ Input:  - student_id, user_query, completed_courses                    │
-│ Process: Calculate GPA, extract interests, determine difficulty level   │
-│                                                                         │
-│ Output: {                                                              │
-│   "student_id": "10001",                                               │
-│   "gpa": 3.45,                                                         │
-│   "strong_subjects": ["Accounting", "Finance"],                        │
-│   "interests": ["accounting", "computer science"],                     │
-│   "career_goals": "investment banking",                                │
-│   "preferred_difficulty": 4,                                           │
-│   "analysis_summary": "..."                                            │
-│ }                                                                       │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 2: Profile Analysis (Manual Claude AI Agent)                 │
+│  Input:  student_profile.json + academic_history.json + interests   │
+│  Agent:  Profile Analyzer Agent (profile_analyzer_agent.md)         │
+│  Process:                                                            │
+│    - Calculate GPA from grades (A=4.0, B=3.0, etc.)                 │
+│    - Identify strong subjects (high grades)                          │
+│    - Extract interests from natural language query                   │
+│    - Infer career goals from interests                               │
+│    - Recommend difficulty level based on GPA                         │
+│  Output: profile_output.json                                         │
+│    {                                                                 │
+│      student_id, gpa, strong_subjects[], interests[],               │
+│      career_goals, preferred_difficulty, analysis_summary            │
+│    }                                                                 │
+└─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│ AGENT 2: COURSE MATCHER                                                │
-│                                                                         │
-│ Input:  - student_profile (from Agent 1)                               │
-│         - available_courses (from DB)                                  │
-│                                                                         │
-│ Process: Score courses using 4 criteria:                               │
-│  • Interest Alignment (40%)                                            │
-│  • Career Relevance (30%)                                              │
-│  • Difficulty Match (20%)                                              │
-│  • Strategic Value (10%)                                               │
-│  Rank top 12 courses by relevance_score                               │
-│                                                                         │
-│ Output: [                                                              │
-│   {                                                                    │
-│     "course_id": "C001",                                               │
-│     "course_code": "FINA 4350",                                        │
-│     "course_name": "Advanced Corporate Finance",                       │
-│     "description": "...",                                              │
-│     "department": "Finance",                                           │
-│     "credits": 3,                                                      │
-│     "difficulty_level": 4,                                             │
-│     "prerequisites": ["FINA 3310", "ACCT 2301"],                      │
-│     "relevance_score": 9.2,                                            │
-│     "match_reasoning": "Matches student's finance interest..."        │
-│   },                                                                   │
-│   ... (11 more courses)                                               │
-│ ]                                                                      │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 3: Course Matching (course_matcher.py)                       │
+│  Input:  profile_output.json + available_courses.json               │
+│  Process:                                                            │
+│    - For each course, calculate relevance score:                     │
+│      • Interest Alignment (40%): keyword matching                    │
+│      • Career Relevance (30%): career goal alignment                 │
+│      • Difficulty Match (20%): difficulty level proximity            │
+│      • Strategic Value (10%): builds on strengths                    │
+│    - Sort courses by relevance_score (descending)                    │
+│    - Select top 12 courses                                           │
+│  Output: matched_courses.json                                        │
+│    [                                                                 │
+│      {course_id, course_code, course_name, description,              │
+│       credits, difficulty_level, prerequisites[],                    │
+│       relevance_score, match_reasoning}                              │
+│    ]                                                                 │
+└─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│ AGENT 3: RECOMMENDATION BUILDER                                         │
-│                                                                         │
-│ Input:  - student_profile (from Agent 1)                               │
-│         - matched_courses (from Agent 2)                               │
-│         - student_completed_courses (from DB)                          │
-│         - prerequisite_map (from DB)                                   │
-│                                                                         │
-│ Process: For top 5 courses:                                            │
-│  • Check if already completed (skip if yes)                            │
-│  • Verify all prerequisites met                                        │
-│  • Determine eligibility_status                                        │
-│  • Create personalized recommendation_text                             │
-│  • Suggest semester                                                    │
-│                                                                         │
-│ Output: {                                                              │
-│   "recommendations": [                                                 │
-│     {                                                                  │
-│       "rank": 1,                                                       │
-│       "course_code": "FINA 4350",                                      │
-│       "course_name": "Advanced Corporate Finance",                     │
-│       "eligibility_status": "eligible|prerequisites_needed",          │
-│       "missing_prerequisites": ["FINA 3320"],                         │
-│       "recommendation_text": "This course directly aligns with...",   │
-│       "suggested_semester": "Fall 2025"                                │
-│     },                                                                 │
-│     ... (4 more recommendations)                                      │
-│   ],                                                                   │
-│   "prerequisites_to_prioritize": [...]                                │
-│ }                                                                      │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 4: Recommendation Building (recommendation_builder.py)       │
+│  Input:  profile_output.json + matched_courses.json +               │
+│          academic_history.json + prerequisites_map.json              │
+│  Process:                                                            │
+│    - For each of top matched courses:                                │
+│      • Check if already completed → skip                             │
+│      • Check prerequisite eligibility                                │
+│      • Mark as "eligible" or "prerequisites_needed"                  │
+│      • Generate personalized recommendation text                     │
+│      • Suggest optimal enrollment semester                           │
+│    - Prioritize eligible courses                                     │
+│    - Include up to 2 prerequisite-needed courses if highly relevant  │
+│    - Create prerequisite roadmap                                     │
+│  Output: recommendations.json                                        │
+│    {                                                                 │
+│      recommendations: [                                              │
+│        {rank, course_code, eligibility_status,                       │
+│         missing_prerequisites[], recommendation_text,                │
+│         suggested_semester}                                          │
+│      ],                                                              │
+│      prerequisites_to_prioritize: [{course_code, reason}]            │
+│    }                                                                 │
+└─────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│               HTML REPORT GENERATION & OUTPUT                           │
-│                                                                         │
-│ Synthesizes all outputs into structured HTML report:                  │
-│  1. Executive Summary (student name, GPA, major, standing)            │
-│  2. Student Profile Analysis (from Agent 1)                           │
-│  3. Course Recommendations (from Agent 3)                             │
-│  4. Prerequisite Roadmap (sequence suggestions)                       │
-│  5. Next Steps (action items, contact info)                           │
-│                                                                         │
-│ Output: recommendation_report_10001_20251202_152915.html               │
-│         (saved to reports/ directory)                                  │
-└─────────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│  STAGE 5: Report Generation (report_generator.py)                   │
+│  Input:  profile_output.json + recommendations.json                 │
+│  Process:                                                            │
+│    - Load HTML template with embedded CSS                            │
+│    - Populate executive summary (student info, GPA, major)           │
+│    - Add profile analysis section                                    │
+│    - Create course recommendation cards with color-coded status      │
+│    - Add prerequisite roadmap                                        │
+│    - Include next steps and advisor contact info                     │
+│    - Generate timestamp for filename                                 │
+│  Output: recommendation_report_{student_id}_{timestamp}.html         │
+│    Professional HTML report viewable in any browser                  │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-### 5.3 Output Produced
+### Output Artifacts
 
-**Primary Output**:
-- **HTML Report** (`reports/recommendation_report_[StudentID]_[Timestamp].html`)
-  - Professional, styled, viewable in browser
-  - Sections: Executive Summary, Profile Analysis, Recommendations, Roadmap, Next Steps
-  - Color-coded eligibility (Green=Eligible, Yellow=Prerequisites Needed)
-  - Print-friendly formatting
-  - Responsive design for multiple devices
+| Output Type | Filename | Location |
+|-------------|----------|----------|
+| **Student Profile** | `student_profile.json` | `reports/{student_id}/` |
+| **Academic History** | `academic_history.json` | `reports/{student_id}/` |
+| **Available Courses** | `available_courses.json` | `reports/{student_id}/` |
+| **Prerequisites Map** | `prerequisites_map.json` | `reports/{student_id}/` |
+| **Profile Analysis** | `profile_output.json` | `reports/{student_id}/` |
+| **Matched Courses** | `matched_courses.json` | `reports/{student_id}/` |
+| **Recommendations** | `recommendations.json` | `reports/{student_id}/` |
+| **Final Report** | `recommendation_report_{id}_{timestamp}.html` | `reports/{student_id}/` |
 
-**Intermediate Outputs** (captured during execution):
-- JSON from Profile Analyzer (student profile object)
-- JSON from Course Matcher (array of 12 scored courses)
-- JSON from Recommendation Builder (5 recommendations with metadata)
+### Data Validation and Quality
 
-**Side Effects**:
-- All agent outputs logged for audit trail
-- Timestamped files enable tracking of multiple recommendation runs
+| Stage | Validation | Error Handling |
+|-------|------------|----------------|
+| **Input Validation** | Verify arguments provided | Exit with usage message |
+| **Database Query** | Check student exists | Exit with error |
+| **JSON Parsing** | Validate JSON structure | Display parsing errors |
+| **Agent Output** | Ensure JSON-only output | Strict prompts |
+| **Prerequisite Check** | Verify prerequisites exist | Skip invalid ones |
+| **Report Generation** | Validate required fields | Use "N/A" for missing |
 
 ---
 
-## 6. Agent Communication Protocol
+## 6. Decision Points and Control Flow
 
-### JSON-Only Output Requirement
+### Main Workflow Decision Tree
 
-Each agent follows **strict JSON-only output** specifications:
-
-**Profile Analyzer**:
-- Returns: Single JSON object
-- No markdown, no explanation, no additional text
-- Output must be valid JSON parseable
-
-**Course Matcher**:
-- Returns: JSON array (exactly 12 courses or fewer)
-- No markdown, no explanation, no additional text
-- Sorted by `relevance_score` descending
-- Output must be valid JSON parseable
-
-**Recommendation Builder**:
-- Returns: Single JSON object with `recommendations` array
-- No markdown, no explanation, no additional text
-- Maximum 5 recommendations (ranked)
-- Includes `prerequisites_to_prioritize` array
-- Output must be valid JSON parseable
-
-### Error Handling
-
-If agent fails:
-1. Error captured and logged
-2. System logs to AIAgentLogs with ExecutionStatus: "Partial_Error"
-3. User receives friendly error message
-4. Retry options provided
-
----
-
-## 7. Workflow Execution Steps
-
-### Phase 1: Input & Initialization
-1. User provides Student ID (e.g., `10001`)
-2. User provides interests/career goals (free text)
-3. System validates student exists in database
-
-### Phase 2: Database Query
-1. Execute 4 parameterized SQL queries:
-   - Student profile (basic info + GPA)
-   - Academic history (completed courses with grades)
-   - Available courses catalog
-   - Prerequisites map
-2. Compile results into JSON structures
-3. Pass to Agent 1
-
-### Phase 3: Agent 1 - Profile Analysis
-1. Receive: student_id, user_query, completed_courses
-2. Calculate GPA from grades (A=4.0, A-=3.7, B+=3.3, B=3.0, etc.)
-3. Identify strong subjects from high grades
-4. Extract interests from user_query
-5. Infer career_goals from interests or use explicit mention
-6. Recommend difficulty level (1-5):
-   - GPA 3.5+: difficulty 4-5
-   - GPA 3.0-3.5: difficulty 3-4
-   - GPA 2.5-3.0: difficulty 2-3
-   - GPA <2.5: difficulty 1-2
-7. Output: Comprehensive student profile
-
-### Phase 4: Agent 2 - Course Matching
-1. Receive: student_profile, available_courses
-2. For each course, calculate relevance_score:
-   - Interest Alignment (40%): keyword matching against interests
-   - Career Relevance (30%): alignment with career_goals
-   - Difficulty Match (20%): closeness to preferred_difficulty
-   - Strategic Value (10%): builds on strong subjects
-3. Scoring scale:
-   - 9.0-10.0: Excellent match
-   - 7.0-8.9: Strong match
-   - 5.0-6.9: Moderate match
-   - 3.0-4.9: Weak match
-   - 0.0-2.9: Poor match
-4. Rank all courses by relevance_score
-5. Output: Top 12 courses with scores and reasoning
-
-### Phase 5: Agent 3 - Recommendation Building
-1. Receive: student_profile, matched_courses (top 12), completed_courses, prerequisite_map
-2. For each of top 12 courses:
-   - Skip if already completed
-   - Check prerequisites:
-     - All met → eligibility_status = "eligible"
-     - Some missing → eligibility_status = "prerequisites_needed"
-   - Generate personalized recommendation_text (3-4 sentences)
-     - How it matches interests
-     - Why valuable for career
-     - When to take (next semester or after prerequisites)
-     - What opportunities it creates
-3. Build prerequisite_to_prioritize list (courses needed for multiple recommendations)
-4. Select top 5 recommendations (prioritize eligible courses)
-5. Output: Structured recommendation object with 5 courses
-
-### Phase 6: Report Generation
-1. Synthesize all outputs into HTML
-2. Create sections:
-   - **Executive Summary**: Name, ID, GPA, major, classification, standing
-   - **Profile Analysis**: Academic performance, strong subjects, interests, goals
-   - **Recommendations**: Top 5 courses with eligibility, prerequisites, reasoning
-   - **Prerequisite Roadmap**: Course sequence suggestions
-   - **Next Steps**: Action items, registration guidance, advisor contact
-3. Apply CSS styling:
-   - Professional layout
-   - Color-coded eligibility
-   - Responsive design
-4. Generate timestamp: `YYYYMMDD_HHMMSS`
-5. Save: `reports/recommendation_report_[StudentID]_[Timestamp].html`
-
-### Phase 7: Completion
-1. Return report location to user
-2. Log successful execution
-3. Make report available for viewing/download
-
----
-
-## 8. Database Schema Integration
-
-### Tables Queried
-
-| Table | Purpose | Fields Used |
-|-------|---------|-------------|
-| **Students** | Student profiles | StudentID, FirstName, LastName, Email, CumulativeGPA, MajorID, ClassificationID, AcademicStanding |
-| **AcademicHistory** | Completed courses & grades | HistoryID, StudentID, CourseID, Grade, TermCompleted |
-| **Courses** | Course catalog | CourseID, CourseCode, CourseName, Description, DepartmentID, CreditHours, DifficultyLevelID, Status |
-| **Departments** | Academic departments | DepartmentID, DepartmentName, DepartmentCode |
-| **Prerequisites** | Prerequisite requirements | PrerequisiteID, CourseID, PrerequisiteCourseID, MinimumGrade, PrerequisiteType |
-| **DifficultyLevels** | Course difficulty scale | DifficultyLevelID, LevelName, DisplayOrder |
-| **Classification** | Student class standing | ClassificationID, ClassificationName |
-| **InstructionModes** | Course delivery method | InstructionModeID, ModeName |
-
-### Query Join Patterns
-
-**Profile Query**:
 ```
-Students 
-  LEFT JOIN Departments (on MajorID)
-  LEFT JOIN Classification (on ClassificationID)
-```
-
-**History Query**:
-```
-AcademicHistory
-  JOIN Courses (on CourseID)
-  JOIN Departments (on DepartmentID)
-```
-
-**Courses Query**:
-```
-Courses
-  LEFT JOIN Departments
-  LEFT JOIN DifficultyLevels
-  LEFT JOIN InstructionModes
-  LEFT JOIN Prerequisites (grouped)
-```
-
-**Prerequisites Query**:
-```
-Prerequisites
-  JOIN Courses (course_side)
-  JOIN Courses (prerequisite_side)
+START
+  │
+  ├─> Arguments provided? ──NO──> Display usage, EXIT
+  │         │
+  │        YES
+  │         │
+  ├─> Student exists in DB? ──NO──> Display error, EXIT
+  │         │
+  │        YES
+  │         │
+  ├─> Create output directory: reports/{student_id}/
+  │
+  ├─> Execute database_queries.py
+  │     │
+  │     ├─> Query 1: Student Profile ──> student_profile.json
+  │     ├─> Query 2: Academic History ──> academic_history.json
+  │     ├─> Query 3: Available Courses ──> available_courses.json
+  │     └─> Query 4: Prerequisites Map ──> prerequisites_map.json
+  │
+  ├─> Manual Profile Analysis (Claude Agent)
+  │     │
+  │     ├─> Load student_profile.json + academic_history.json
+  │     ├─> Calculate GPA from grades
+  │     ├─> Identify strong subjects (grades >= B+)
+  │     ├─> Extract interests from user query (NLP)
+  │     ├─> Infer career goals from interests
+  │     ├─> Recommend difficulty level:
+  │     │     GPA >= 3.5 ──> difficulty 4-5
+  │     │     GPA 3.0-3.5 ──> difficulty 3-4
+  │     │     GPA 2.5-3.0 ──> difficulty 2-3
+  │     │     GPA < 2.5 ──> difficulty 1-2
+  │     └─> Output profile_output.json
+  │
+  ├─> Execute course_matcher.py
+  │     │
+  │     ├─> For each available course:
+  │     │     │
+  │     │     ├─> Calculate Interest Score (40%):
+  │     │     │     Count keyword matches in description
+  │     │     │
+  │     │     ├─> Calculate Career Score (30%):
+  │     │     │     Check alignment with career goals
+  │     │     │
+  │     │     ├─> Calculate Difficulty Score (20%):
+  │     │     │     |course_difficulty - preferred_difficulty|
+  │     │     │       0 difference ──> 1.0
+  │     │     │       1 difference ──> 0.7
+  │     │     │       2 difference ──> 0.4
+  │     │     │       >2 difference ──> 0.1
+  │     │     │
+  │     │     ├─> Calculate Strategic Score (10%):
+  │     │     │     Matches strong subjects? +0.6
+  │     │     │     Matches major? +0.4
+  │     │     │
+  │     │     └─> Total Relevance Score = Sum(weighted scores)
+  │     │
+  │     ├─> Sort courses by relevance_score (descending)
+  │     └─> Output top 12 courses ──> matched_courses.json
+  │
+  ├─> Execute recommendation_builder.py
+  │     │
+  │     ├─> Load matched_courses.json (top 12)
+  │     ├─> Load academic_history.json (completed courses)
+  │     ├─> Load prerequisites_map.json
+  │     │
+  │     ├─> For each of top 5 matched courses:
+  │     │     │
+  │     │     ├─> Already completed? ──YES──> SKIP, try next course
+  │     │     │         │
+  │     │     │        NO
+  │     │     │         │
+  │     │     ├─> Check prerequisites:
+  │     │     │     │
+  │     │     │     ├─> All prerequisites completed? ──YES──> Mark "eligible"
+  │     │     │     │         │
+  │     │     │     │        NO
+  │     │     │     │         │
+  │     │     │     └─> Mark "prerequisites_needed"
+  │     │     │         List missing prerequisites
+  │     │     │
+  │     │     ├─> Generate personalized recommendation text:
+  │     │     │     - Reference specific interests
+  │     │     │     - Explain career relevance
+  │     │     │     - Suggest enrollment timing
+  │     │     │
+  │     │     └─> Add to recommendations list
+  │     │
+  │     ├─> Prioritization logic:
+  │     │     - Prioritize "eligible" courses first
+  │     │     - Include up to 2 "prerequisites_needed" if score >8.0
+  │     │     - Generate prerequisite roadmap
+  │     │
+  │     └─> Output recommendations.json (top 5)
+  │
+  ├─> Execute report_generator.py
+  │     │
+  │     ├─> Load profile_output.json
+  │     ├─> Load recommendations.json
+  │     │
+  │     ├─> Generate HTML sections:
+  │     │     ├─> Executive Summary (student info, GPA, major)
+  │     │     ├─> Profile Analysis (strengths, interests, goals)
+  │     │     ├─> Course Recommendations (top 5 cards with status badges)
+  │     │     ├─> Prerequisite Roadmap (courses to take first)
+  │     │     └─> Next Steps (action items)
+  │     │
+  │     ├─> Apply CSS styling:
+  │     │     - Color-coded status badges
+  │     │     - Responsive grid layout
+  │     │     - Print-friendly formatting
+  │     │
+  │     ├─> Generate timestamp
+  │     │
+  │     └─> Output recommendation_report_{student_id}_{timestamp}.html
+  │
+  └─> Display completion summary
+      - Report location
+      - Number of recommendations
+      - Prerequisite requirements
+      └─> END
 ```
 
 ---
 
-## 9. Workflow Configuration
+## 7. Agent Specifications
 
-### Environment Setup
+### Profile Analyzer Agent
 
-**Required Files**:
-- `.claude/commands/student-eval-analysis.md` - Main workflow definition
-- `.claude/agents/profile_analyzer_agent.md` - Agent 1 specification
-- `.claude/agents/course_matcher_agent.md` - Agent 2 specification
-- `.claude/agents/recommendation_builder_agent.md` - Agent 3 specification
-- `src/orchestration/database_queries.py` - Database query tool
-- `sqlite_database.db` - SQLite database (must exist and be populated)
+**File**: `.claude/agents/profile_analyzer_agent.md`
 
-**Expected Directories**:
-- `reports/` - Output directory for HTML reports (created if missing)
-- `.claude/` - Configuration directory (must exist)
+**Role**: Academic advisor AI analyzing student academic history and interests
 
-**Python Dependencies**:
-- `sqlite3` (built-in)
-- `json` (built-in)
-- `sys` (built-in)
-- `datetime` (built-in)
+**Input Schema**:
+```json
+{
+  "student_id": "string",
+  "user_query": "string (natural language interests)",
+  "completed_courses": [
+    {
+      "course_code": "string",
+      "course_name": "string",
+      "grade": "string (A, A-, B+, etc.)",
+      "credits": "number",
+      "semester": "string"
+    }
+  ]
+}
+```
 
-### Execution Command
+**Processing Logic**:
+1. Calculate GPA using grade conversion (A=4.0, A-=3.7, B+=3.3, etc.)
+2. Identify strong subjects (grades >= B+)
+3. Extract interests using keyword extraction from user_query
+4. Infer career goals from interests or set to null
+5. Recommend difficulty level based on GPA thresholds
+
+**Output Schema** (JSON only, no markdown):
+```json
+{
+  "student_id": "string",
+  "gpa": 3.45,
+  "strong_subjects": ["Finance", "Accounting"],
+  "interests": ["corporate finance", "investment strategies"],
+  "career_goals": "investment banking",
+  "preferred_difficulty": 4,
+  "analysis_summary": "2-3 sentence profile summary"
+}
+```
+
+---
+
+### Course Matcher Agent
+
+**File**: `.claude/agents/course_matcher_agent.md`
+
+**Role**: Expert at matching academic courses to student interests and ability levels
+
+**Input Schema**:
+```json
+{
+  "student_profile": {
+    "student_id": "string",
+    "gpa": "number",
+    "strong_subjects": ["string"],
+    "interests": ["string"],
+    "career_goals": "string",
+    "preferred_difficulty": "number (1-5)"
+  },
+  "available_courses": [
+    {
+      "course_id": "string",
+      "course_code": "string",
+      "course_name": "string",
+      "description": "string",
+      "department": "string",
+      "credits": "number",
+      "difficulty_level": "number (1-5)",
+      "prerequisites": ["string"]
+    }
+  ]
+}
+```
+
+**Scoring Algorithm**:
+```
+Total Score = (Interest_Score × 0.40) + 
+              (Career_Score × 0.30) + 
+              (Difficulty_Score × 0.20) + 
+              (Strategic_Score × 0.10)
+
+Interest Score: keyword_matches / total_interests
+Career Score: 1.0 if career keywords found, 0.7 if general match, 0.0 otherwise
+Difficulty Score: 1.0 if exact match, 0.7 if ±1, 0.4 if ±2, 0.1 if >2
+Strategic Score: +0.6 if builds on strong subjects, +0.4 if matches major
+```
+
+**Output Schema** (JSON only, top 12 courses):
+```json
+[
+  {
+    "course_id": "string",
+    "course_code": "string",
+    "course_name": "string",
+    "description": "string",
+    "department": "string",
+    "credits": "number",
+    "difficulty_level": "number",
+    "prerequisites": ["string"],
+    "relevance_score": "number (0-100)",
+    "match_reasoning": "one sentence explanation"
+  }
+]
+```
+
+---
+
+### Recommendation Builder Agent
+
+**File**: `.claude/agents/recommendation_builder_agent.md`
+
+**Role**: Academic advisor creating personalized, actionable course recommendations
+
+**Input Schema**:
+```json
+{
+  "student_profile": {...},
+  "matched_courses": [...],
+  "student_completed_courses": [
+    {"course_code": "string", "course_name": "string"}
+  ],
+  "prerequisite_map": [
+    {
+      "course_code": "string",
+      "prerequisites": ["string"]
+    }
+  ]
+}
+```
+
+**Processing Logic**:
+1. For each top matched course:
+   - Check if already completed → skip
+   - Check all prerequisites completed → mark "eligible"
+   - Check prerequisites missing → mark "prerequisites_needed"
+2. Prioritize eligible courses in top 5
+3. Include up to 2 prerequisite-needed courses if relevance_score >8.0
+4. Generate 3-4 sentence personalized recommendation text
+5. Suggest enrollment semester based on eligibility
+
+**Output Schema** (JSON only, top 5 recommendations):
+```json
+{
+  "recommendations": [
+    {
+      "rank": "number",
+      "course_id": "string",
+      "course_code": "string",
+      "course_name": "string",
+      "credits": "number",
+      "difficulty_level": "number",
+      "relevance_score": "number",
+      "eligibility_status": "eligible | prerequisites_needed",
+      "missing_prerequisites": ["string"],
+      "recommendation_text": "personalized 3-4 sentence recommendation",
+      "suggested_semester": "Fall 2025 | Spring 2026"
+    }
+  ],
+  "total_recommendations": "number",
+  "prerequisites_to_prioritize": [
+    {
+      "course_code": "string",
+      "reason": "why this prerequisite is important"
+    }
+  ]
+}
+```
+
+---
+
+## 8. Technical Implementation Details
+
+### Technology Stack
+
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| **AI Orchestration** | Claude Code CLI / Gemini CLI | Multi-agent workflow coordination |
+| **AI Models** | Claude Haiku 4.5 / Sonnet 4.5 | Natural language understanding and analysis |
+| **Programming Language** | Python 3.x | Data processing and report generation |
+| **Database** | SQLite 3 | Student and course data storage |
+| **Output Format** | JSON, HTML/CSS | Structured data interchange and report presentation |
+| **Development Assistant** | GitHub Copilot | Code generation and development acceleration |
+
+### Database Schema Highlights
+
+**Key Tables**:
+- `Students`: Profile, GPA, major, classification, academic standing
+- `AcademicHistory`: Completed courses, grades, terms
+- `Courses`: Course catalog with descriptions, difficulty, prerequisites
+- `Prerequisites`: Course prerequisite requirements and minimum grades
+- `Departments`: Academic departments
+- `DifficultyLevels`: 5-level difficulty scale
+- `Classification`: Student class levels (Freshman-Senior)
+
+**Query Performance**:
+- All queries use parameterized SQL to prevent injection
+- Indexes on StudentID, CourseID for fast lookups
+- LEFT JOINs used to handle missing relationships gracefully
+
+### Error Handling Strategy
+
+1. **Input Validation**: Verify arguments before execution
+2. **Database Errors**: Catch connection failures, display user-friendly messages
+3. **JSON Parsing**: Validate agent outputs are valid JSON
+4. **File I/O**: Handle missing files, permission errors
+5. **Agent Output Quality**: Strict JSON-only requirements in agent prompts
+6. **Prerequisite Validation**: Skip invalid prerequisites, continue processing
+
+---
+
+## 9. Future Enhancements
+
+Based on project reflection notes, potential improvements include:
+
+### MCP Server Integration
+
+- **Live University System**: Connect to real registration systems
+- **Real-time Availability**: Track course enrollment, waitlists, caps
+- **Live Transcripts**: Access current student data without manual imports
+- **Registration Integration**: Allow direct course registration from recommendations
+
+### Additional Features
+
+- **Multi-semester Planning**: Generate 2-4 semester roadmaps
+- **Peer Comparison**: Show how similar students performed in courses
+- **Professor Ratings**: Integrate teaching quality data
+- **Schedule Optimization**: Consider time preferences and conflicts
+- **Degree Progress Tracking**: Show completion percentage for requirements
+- **Alternative Pathways**: Suggest different course sequences for same goals
+
+### Performance Optimizations
+
+- **Caching**: Store course scoring results for repeated queries
+- **Batch Processing**: Handle multiple students in parallel
+- **Incremental Updates**: Only re-analyze changed data
+- **Database Indexing**: Add indexes for common query patterns
+
+---
+
+## 10. Usage Examples
+
+### Example 1: Finance-Focused Student
 
 ```bash
-# Run the orchestrator via Claude AI
-python src/orchestration/database_queries.py [student_id]
+/student-eval-analysis 10001 "accounting and computer science"
 ```
 
-Then invoke in Claude:
+**Workflow Steps**:
+1. Query database for student 10001
+2. Profile Analyzer extracts interests: ["accounting", "computer science"]
+3. Course Matcher scores courses high in accounting/CS departments
+4. Recommendation Builder verifies ACCT/CS prerequisites
+5. Report Generator creates HTML with top 5 courses
+
+**Output**: `reports/10001/recommendation_report_10001_20251203_185730.html`
+
+---
+
+### Example 2: Investment Banking Career Goal
+
+```bash
+/student-eval-analysis 10002 "investment banking and corporate finance"
 ```
-Please run student-eval-analysis.md file found in .claude/commands/ for student [ID] who has interests in [INTERESTS]
-```
+
+**Workflow Steps**:
+1. Query database for student 10002
+2. Profile Analyzer infers career goal: "investment banking"
+3. Course Matcher prioritizes: FINA 4350, FINA 4380, FINA 4360
+4. Recommendation Builder checks if student completed FINA 3310 prerequisite
+5. Report Generator highlights prerequisite-needed courses in yellow
+
+**Output**: `reports/10002/recommendation_report_10002_20251203_185409.html`
 
 ---
 
-## 10. Performance & Scalability
+## 11. Key Success Factors
 
-### Query Performance
+### What Makes This Workflow Effective
 
-- **Student Profile Query**: O(1) - Single student lookup via primary key
-- **Academic History Query**: O(n) - Linear in number of completed courses
-- **Available Courses Query**: O(m) - Linear in total courses
-- **Prerequisites Query**: O(p) - Linear in prerequisite relationships
+1. **Separation of Concerns**: Three specialized agents, each with clear responsibilities
+2. **Structured Communication**: JSON-only outputs ensure reliable parsing
+3. **Weighted Scoring**: Multi-criteria matching balances interests, career, difficulty
+4. **Prerequisite Verification**: Prevents recommending courses students can't take
+5. **Personalized Recommendations**: Natural language tailored to individual goals
+6. **Professional Output**: HTML reports are advisor-ready and student-friendly
+7. **Audit Trail**: All intermediate JSON files saved for transparency
 
-Typical execution:
-- DB queries: <1 second (for ~300 courses, ~500 students)
-- Agent processing: 5-15 seconds (Claude API latency)
-- Report generation: <1 second
-- Total workflow: 10-20 seconds
+### Lessons Learned (from reflection.md)
 
-### Scalability Considerations
-
-- Database indexes on StudentID, CourseCode, DepartmentID
-- Prerequisite map loaded entirely into memory (OK for <5000 prerequisites)
-- JSON outputs kept in memory (OK for <500 courses)
-- Batch processing not implemented (single student at a time)
-
-### Future Optimization Opportunities
-
-- Implement caching for frequently accessed courses
-- Batch process multiple students in parallel
-- Async agent invocations instead of sequential
-- Stream large reports to browser instead of file storage
+- **Specificity is key**: Clear agent roles and output schemas prevent parsing failures
+- **Iterative refinement**: 3-4 iterations per agent needed for reliable outputs
+- **JSON-only communication**: Markdown and explanations cause parsing issues
+- **SQLite simplicity**: Lightweight database allowed focus on AI agents
+- **Session consistency challenges**: Gemini CLI sometimes struggled with multi-agent context
 
 ---
 
-## 11. Architecture Decisions & Rationale
+## Document Metadata
 
-| Decision | Rationale | Trade-offs |
-|----------|-----------|-----------|
-| **JSON-only Agent Output** | Ensures structured, parseable results | Less human-readable intermediate outputs |
-| **Three-Agent Pipeline** | Separation of concerns; each agent specialized | More complex orchestration |
-| **SQLite for Data** | Lightweight, single-file database | Not suitable for concurrent writes |
-| **HTML Report Output** | Human-readable, shareable, print-friendly | Not machine-parseable |
-| **Parameterized Queries** | SQL injection prevention | Slightly less flexible queries |
-| **Synchronous Workflow** | Simpler error handling and ordering | Slower than async (can be optimized) |
-
----
-
-## 12. Extensibility & Future Enhancements
-
-### Potential Extensions
-
-1. **Additional Agents**:
-   - Career Path Analyzer (recommend 4-year course sequences)
-   - Study Group Recommender (match students with similar interests)
-   - Prerequisite Planner (optimize sequence of prerequisites)
-
-2. **Enhanced Data Sources**:
-   - Faculty research interests (match to student goals)
-   - Alumni career outcomes (show which courses led to jobs)
-   - Course reviews/ratings from students
-
-3. **User Interface**:
-   - Web dashboard for recommendations
-   - Real-time report generation UI
-   - Student preferences/filtering interface
-
-4. **ML Enhancements**:
-   - Predictive GPA improvement based on course selection
-   - Personalized difficulty recommendations via ML
-   - Course recommendation ranking via learned weights
-
-5. **Integration Points**:
-   - MCP servers for additional tools
-   - External APIs for career data
-   - LMS integration for real-time enrollment data
-
----
-
-## 13. Troubleshooting Guide
-
-| Issue | Cause | Resolution |
-|-------|-------|-----------|
-| Agent outputs invalid JSON | JSON-only requirement violated | Check agent output format strictly |
-| Missing course data | `Status` != 'Active' | Verify courses marked as 'Active' in database |
-| Prerequisite mismatch | Course removed from curriculum | Update prerequisites table and course status |
-| Report not generated | `reports/` directory missing | Create reports/ directory |
-| Database query fails | `sqlite_database.db` not in project root | Verify database path in `database_queries.py` |
-| Student not found | Incorrect StudentID | Verify student exists: `SELECT * FROM Students WHERE StudentID = ?` |
-
----
-
-## 14. Workflow Evolution Timeline
-
-**Current Version**: 1.0 (Dec 2025)
-- Three-agent architecture
-- SQLite backend
-- HTML report generation
-- JSON communication protocol
-
-**Roadmap**:
-- v1.1: Add caching for repeated student queries
-- v1.2: Support batch student processing
-- v2.0: Web UI for recommendation dashboard
-- v2.1: ML-based weight optimization
-- v3.0: Multi-semester planning agent
-
----
-
-## Summary
-
-The Student Course Recommendation System is a sophisticated **three-agent orchestration pipeline** that transforms raw academic data into personalized, actionable course recommendations. By separating concerns (profile analysis, course matching, recommendation building), the system achieves both modularity and accuracy. The strict JSON communication protocol ensures reliable agent interaction, while the SQLite backend provides scalable data storage. Future enhancements can easily extend the agent roster or integrate additional data sources without disrupting core workflow.
+- **Created**: December 3, 2025
+- **Project**: Multi-Agent Student Course Recommendation Workflow
+- **Repository**: AI_group_project
+- **Primary Author**: macglaesser
+- **AI Tools Used**: Claude Code CLI, Gemini CLI, GitHub Copilot
+- **Workflow Framework**: `.claude` framework (Claude/Gemini compatible)
